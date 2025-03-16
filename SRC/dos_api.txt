@@ -1,0 +1,1621 @@
+!doc dos_api_index
+BIOS/DOS API reference
+
+  This is short compilation information from various sources.
+
+~Conventional memory functions~ (IL, Copyright 2000 Ralf Brown):
+
+!link INT2148 INT 21 AH=48 Allocate memory
+!link INT2149 INT 21 AH=49 Free memory
+!link INT214A INT 21 AH=4A Resize memory block
+
+~Basic DOS file input-output~ (IL, Copyright 2000 Ralf Brown):
+
+!link INT213C INT 21, AH=3C Create file
+!link INT213D INT 21, AH=3D Open existing file
+!link INT213F INT 21, AH=3F Read from file
+!link INT2140 INT 21, AH=40 Write to file
+!link INT2142 INT 21, AH=42 LSeek - set/get current file position
+!link INT213E INT 21, AH=3E Close file
+
+~Long file names~ (IL, Copyright 2000 Ralf Brown):
+
+INT 21, AX=710D reset drive
+INT 21, AX=7139 create directory
+INT 21, AX=713A remove directory
+INT 21, AX=713B set current directory
+INT 21, AX=7141 delete file
+INT 21, AX=7143 get/set file attributes
+INT 21, AX=7147 get current directory
+INT 21, AX=714E find first file
+INT 21, AX=714F find next file
+INT 21, AX=7156 move (rename) file
+INT 21, AX=7160 truename
+!link INT21716C INT 21 AX=716C Open or create file
+INT 21, AX=71A0 get volume information
+INT 21, AX=71A1 terminate FindFirst/FindNext
+INT 21, AX=71A6 get file information
+INT 21, AX=71A7 time conversion
+INT 21, AX=71A8 generate short filename
+INT 21, AX=71A9 server create/open file
+INT 21, AX=71AA create/terminate SUBST
+
+---
+!link wincb_index Windows Clipboard API
+!link xms_index XMS - Extended Memory Specification
+---
+!link tp_error_codes Turbo/Free Pascal Error codes
+
+!doc wincb_index
+Windows Clipboard API for DOS
+
+!link wincb_Q67675 Access to the Windows Clipboard by MS-DOS-Based App
+
+Windows Clipboard API:
+
+!link wincb_IdentifyWinOldApVersion INT 2F, AX=1700 IdentifyWinOldApVersion
+!link wincb_OpenClipboard INT 2F, AX=1701 OpenClipboard
+!link wincb_EmptyClipboard INT 2F, AX=1702 EmptyClipboard
+!link wincb_SetClipboardData INT 2F, AX=1703 SetClipboardData
+!link wincb_GetClipboardDataSize INT 2F, AX=1704 GetClipboardDataSize
+!link wincb_GetClipboardData INT 2F, AX=1705 GetClipboardData
+!link wincb_CloseClipboard INT 2F, AX=1708 CloseClipboard
+!link wincb_ClipboardCompact INT 2F, AX=1709 ClipboardCompact
+!link wincb_GetDeviceCaps INT 2F, AX=170A GetDeviceCaps
+
+!link wincb_formats Supported Clipboard Formats
+
+!doc wincb_Q67675
+Q67675: Access to the Windows Clipboard by MS-DOS-Based App
+
+https://jeffpar.github.io/kbarchive/kb/067/Q67675/
+
+Last Modified: 06-NOV-1999
+
+~SUMMARY~
+
+  Windows real and standard modes do not provide an interface for standard
+MS-DOS (non-Windows) applications to access the Windows clipboard. However,
+in Windows enhanced mode, access is provided through the ~INT 2fh~ interface.
+This article discusses various methods that may be used to simulate clipboard
+access in real and standard modes and documents the ~INT 2fh~ interface for
+enhanced mode.
+
+~MORE INFORMATION~
+
+  Under Windows real and standard modes, it is possible to simulate
+programmatic access to the contents of the clipboard by a standard
+MS-DOS-based application. One possible method is to create a Windows-based
+application that places the contents of the Windows clipboard into a file.
+The MS-DOS-based application would check for the existence of the file saved
+from the Windows-based application. When the file exists, the MS-DOS-based
+application can read the contents, eliminating the necessity for direct user
+intervention on behalf of the MS-DOS-based application.
+
+  Only textual information can be retrieved from the clipboard by a standard
+MS-DOS-based application. This is done using the Edit Paste hierarchical
+system menu combination in Windows enhanced mode that is available when the
+MS-DOS-based application is windowed.
+
+  In Windows real or standard modes, a Paste option can be selected directly
+from the system menu only when the MS-DOS-based application is represented by
+an icon ("iconic"), giving the user access to its system menu. When Paste is
+selected, Windows will restore the MS-DOS-based application to full screen
+and paste the contents of the clipboard where the cursor is located in the
+MS-DOS-based application. MS-DOS-based applications can be made iconic in
+real and standard modes through an ~ALT+TAB~ keystroke.
+
+  Placing information into the clipboard can be done though the use of the
+~PRINT SCREEN~ or ~ALT+PRINT SCREEN~ keystrokes, each of which copies a full
+screen into the clipboard.
+
+  Copying information to the Windows clipboard can be done in Windows enhanced
+mode using the Edit Mark and Edit Copy system menu commands.
+
+  More information on user control of the Windows Clipboard can be found on
+pages 440-490 in the "Microsoft Windows User's Guide" Chapter 12.
+
+  The remainder of this article documents the ~INT 2fh~ interface to the
+clipboard, available in Windows enhanced mode.
+
+
+~NOTE~: The Windows functions ~RegisterClipboardFormat()~ and
+~EnumClipboardFormats()~ are ~not supported~.
+
+!doc wincb_IdentifyWinOldApVersion
+IdentifyWinOldApVersion()
+
+Parameters     AX = 1700H
+
+Return Values  AX == 1700H: Clipboard functions not available
+                  <> 1700H: AL = Major version number
+                            AH = Minor version number
+~Example~:
+
+FUNCTION WCB_Detect : BOOLEAN;ASSEMBLER;
+ASM
+        MOV  AX, $1700
+        INT  $2F
+        XOR  BX, BX
+        CMP  AX, $1700
+        JE   @end
+        INC  BX
+@end:
+        MOV  AX, BX
+END;
+
+!doc wincb_OpenClipboard
+OpenClipboard()
+
+Parameters     AX = 1701H
+
+Return Values  AX == 0: Clipboard already open
+                  <> 0: Clipboard opened
+
+~Example~:
+
+FUNCTION WCB_Open : BOOLEAN;ASSEMBLER;
+ASM
+        MOV  AX, $1701
+        INT  $2F
+        XOR  BX, BX
+        OR   AX, AX
+        JZ   @end
+        INC  BX
+@end:
+        MOV  AX, BX
+END;
+
+!doc wincb_EmptyClipboard
+EmptyClipboard()
+
+Parameters     AX = 1702H
+
+Return Values  AX == 0: Error occurred
+                  <> 0: OK, Clipboard emptied
+
+~Example~:
+
+FUNCTION WCB_Clear : BOOLEAN;ASSEMBLER;
+ASM
+        MOV  AX, $1702
+        INT  $2F
+        XOR  BX, BX
+        OR   AX, AX
+        JZ   @end
+        INC  BX
+@end:
+        MOV  AX, BX
+END;
+
+!doc wincb_SetClipboardData
+SetClipboardData()
+
+Parameters     AX = 1703H
+               DX = WinOldAp-Supported Clipboard format
+               ES:BX = Pointer to data
+               SI:CX = Size of data in bytes
+
+Return Values  AX == 0: Error occurred
+                  <> 0: OK.  Data copied into allocated memory.
+
+~NOTE~: The MS-DOS-based application should call the ~ClipboardCompact()~
+function prior to this to determine if the data can be accommodated in memory.
+
+~Example~:
+
+FUNCTION WCB_SetData(VAR d; size : WORD) : BOOLEAN;ASSEMBLER;
+ASM
+        PUSH ES
+        LES  BX, d
+        MOV  CX, size
+        XOR  SI,SI
+        MOV  AX, $1703
+        MOV  DX, 1
+        INT  $2F
+        POP  ES
+        XOR  BX, BX
+        OR   AX, AX
+        JZ   @end
+        INC  BX
+@end:
+        MOV  BX, AX
+END;
+
+!link wincb_formats Supported Clipboard Formats
+!link wincb_ClipboardCompact INT 2F, AX=1709 ClipboardCompact
+
+!doc wincb_GetClipboardDataSize
+GetClipboardDataSize()
+
+Parameters     AX = 1704H
+               DX = WinOldAp-Supported Clipboard format
+
+Return Values  DX:AX == Size of the data in bytes, including any
+                        headers.
+                     == 0 If data in this format is not in the clipboard.
+
+~Example~:
+
+FUNCTION WCB_GetDataSize : LONGINT;ASSEMBLER;
+ASM
+        MOV  AX, $1704
+        MOV  DX, 1
+        INT  $2F
+END;
+
+!link wincb_formats Supported Clipboard Formats
+
+!doc wincb_GetClipboardData
+GetClipboardData()
+
+Parameters     AX = 1705H
+               DX = WinOldAp-Supported Clipboard format
+               ES:BX = Pointer to data buffer to hold data
+
+Return Values  AX == 0: Error occurred (or data in this format is not
+                        in the clipboard)
+                  <> 0: OK
+
+~NOTE~: This call should be preceded by a ~GetClipBoardDataSize()~ call to find
+out how much memory is required for the buffer. No checking is performed, the
+caller must ensure that the buffer is big enough; otherwise, some of the
+callers code or data may be overwritten.
+
+~Example~:
+
+FUNCTION WCB_GetData(VAR d) : BOOLEAN;ASSEMBLER;
+ASM
+        PUSH ES
+        LES  BX, d
+        MOV  DX, 1
+        MOV  AX, $1705
+        INT  $2F
+        POP  ES
+        XOR  BX, BX
+        OR   AX, AX
+        JZ   @end
+        INC  BX
+@end:
+        MOV  AX, BX
+END;
+
+!link wincb_formats Supported Clipboard Formats
+!link wincb_GetClipboardDataSize INT 2F, AX=1704 GetClipboardDataSize
+
+!doc wincb_CloseClipboard
+CloseClipboard()
+
+Parameters     AX = 1708H
+
+Return Values  AX == 0: Error occurred
+                  <> 0: OK
+
+~Example~:
+
+PROCEDURE WCB_Close;ASSEMBLER;
+ASM
+        MOV  AX, $1708
+        INT  $2F
+END;
+
+!doc wincb_ClipboardCompact
+ClipboardCompact()
+
+Parameters     AX = 1709H
+               SI:CX = Desired memory size in bytes.
+
+Return Values  DX:AX == Number of bytes of largest block of free memory.
+                     == 0 if error or no memory
+
+~NOTE~: The MS-DOS-based application is responsible for including the size
+of any headers in the desired memory size.
+
+!doc wincb_GetDeviceCaps
+GetDeviceCaps()
+
+Parameters     AX = 170AH
+               DX = GDI information index
+
+Return Values  AX == integer value of desired item
+                  == 0 if error
+
+~NOTE~: The implied hDC for this call will be for the display.
+
+!doc wincb_formats
+Supported Clipboard Formats
+
+The following Windows clipboard formats are supported:
+
+ CF_TEXT      = 1
+ CF_BITMAP    = 2         ; See structures section
+ CF_OEMTEXT   = 7
+ CF_DSPTEXT   = 81h
+ CF_DSPBITMAP = 82h
+
+~NOTE~: Since the ~RegisterClipboardFormat()~ and ~EnumClipboardFormats()~
+functions are not available at this time, the use of private clipboard
+formats is ~not supported~.
+
+~Structures~
+---
+
+  These structures mimic the actual Windows structures with one major
+difference: instead of including a handle or pointer to other memory
+containing the actual data, the data follows the structure. The structure
+information now behaves like a header prefacing the data.
+
+Bitmap structure:
+
+  bmType          ~DW~      ?   ; Always 0
+  bmWidth         ~DW~      ?   ; Width of bitmap in pixels
+  bmHeight        ~DW~      ?   ; Height of bitmap in raster lines
+  bmWidthBytes    ~DW~      ?   ; Bytes/raster line
+  bmPlanes        ~DB~      ?   ; Number of color planes in the bitmap
+  bmBitsPixel     ~DB~      ?   ; Number of adj color bits to def pixel
+  bmBits          ~DQ~      ?   ; Points to byte following bmHigDim
+  bmWidDim        ~DW~      ?   ; Width of bitmap in 0.1 mm units
+  bmHigDim        ~DW~      ?   ; Height of bitmap in 0.1 mm units
+  BitmapData      ~nBytes~      ; The actual data
+
+!doc xms_index
+Extended Memory Specification
+
+!link xms20_index Extended Memory Specification (XMS), ver 2.0
+
+by  Japheth:
+!link xms35_api XMS v3.5 API
+!link xms351_api XMS v3.51 API
+!link int15_E820 BIOS INT 15, AX=E820h
+!link int15_87 BIOS INT 15, AH=87h
+
+!doc xms20_index
+eXtended Memory Specification (XMS), ver 2.0
+
+July 19, 1988
+                     Extended Memory Specification
+
+    The purpose of this document is to define the Extended Memory Specifica-
+tion (XMS) version 2.00 for MS-DOS.  XMS allows DOS programs to utilize
+additional memory found in Intel's 80286 and 80386 based machines in
+a consistent, machine independent manner.  With some restrictions, XMS adds
+almost 64K to the 640K which DOS programs can access directly. Depending on
+available hardware, XMS may provide even more memory to DOS programs. XMS
+also provides DOS programs with a standard method of storing data in extended
+memory.
+
+!link xms20_defs Definitions
+!link xms20_drv_install Driver installtion
+
+!link xms20_drv_check Determining if an XMS driver is installed
+!link xms20_api_root The programming API
+!link xms20_call_api Calling the API functions
+!link xms20_api_func_list API function descriptions
+!link xms20_hma_prio Prioritizing HMA usage
+!link xms20_hma_restictions High Memory Area restrictions
+!link xms20_error Error code list
+
+!link xms20_impl_notes Implementation notes for DOS XMS drivers
+!link xms20_copyright Copyright
+
+!doc xms20_defs
+DEFINITIONS
+
+    Extended
+    Memory      -   Memory in 80286 and 80386 based machines which is located
+                    above the 1MB address boundary.
+
+    High Memory
+    Area (HMA)  -   The first 64K of extended memory.  The High Memory
+                    Area is unique because code can be executed in it while
+                    in real mode.  The HMA officially starts at FFFF:10h
+                    and ends at FFFF:FFFFh making it 64K-16 bytes in length.
+                    
+    Upper Memory
+    Blocks (UMBs)-  Blocks of memory available on some 80x86 based machines
+                    which are located between DOS's 640K limit and the
+                    1MB address boundary.  The number, size, and location
+                    of these blocks vary widely depending upon the types
+                    of hardware adapter cards installed in the machine.
+                    
+    Extended Memory
+    Blocks (EMBs)-  Blocks of extended memory located above the HMA which
+                    can only be used for data storage.
+                    
+    A20 Line    -   The 21st address line of 80x86 CPUs.  Enabling the A20
+                    line allows access to the HMA.
+
+    XMM         -   An Extended Memory Manager.  A DOS device driver which
+                    implements XMS.  XMMs are machine specific but allow
+                    programs to use extended memory in a machine-independent
+                    manner.
+    
+    HIMEM.SYS   -   The Extended Memory Manager currently being distributed
+                    by Microsoft.
+
+Helpful Diagram:
+
+    |                                                       |   Top of Memory
+    |                                                       |
+    |                        /\                             |
+    |                       /||\                            |
+    |                        ||                             |
+    |.......................................................|
+    |                                                       |
+    |             Possible Extended Memory Block            |
+    |                                                       |
+    |.......................................................|
+    |                        ||                             |
+    |                       \||/                            |
+    |                        \/                             |
+    |                                                       |
+    |       Other EMBs could exist above 1088K (1MB+64K)    |
+    |                                                       |
+    |-------------------------------------------------------|   1088K
+    |                                                       |
+    |                The High Memory Area                   |
+    |                                                       |
+    |=======================================================|   1024K or 1MB
+    |                                                       |
+    |                        /\                             |
+    |                       /||\                            |
+    |                        ||                             |
+    |.......................................................|
+    |                                                       |
+    |             Possible Upper Memory Block               |
+    |.......................................................|
+    |                        ||                             |
+    |                       \||/                            |
+    |                        \/                             |
+    |                                                       |
+    |        Other UMBs could exist between 640K and 1MB    |
+    |                                                       |
+    |-------------------------------------------------------|   640K
+    |                                                       |
+    |             Conventional or DOS Memory                |
+    |                                                       |
+    +-------------------------------------------------------+   0K
+!doc xms20_drv_install
+DRIVER INSTALLATION
+
+    An XMS driver is installed by including a DEVICE= statement in the
+machine's CONFIG.SYS file.  It must be installed prior to any other
+devices or TSRs which use it.  An optional parameter after the driver's 
+name (suggested name "/HMAMIN=") indicates the minimum amount of space in
+the HMA a program can use.  Programs which use less than the minimum will
+not be placed in the HMA.  See "Prioritizing HMA Usage" below for more
+information.  A second optional parameter (suggested name "/NUMHANDLES=")
+allows users to specify the maximum number of extended memory blocks which
+may be allocated at any time.
+
+    ~NOTE~: XMS requires DOS 3.00 or above.
+
+
+!doc xms20_api_root
+THE PROGRAMMING API
+
+    The XMS API Functions are accessed via the XMS driver's Control Function.
+The address of the Control Function is determined via INT 2Fh.  First, a
+program should determine if an XMS driver is installed.  Next, it should
+retrieve the address of the driver's Control Function.  It can then use any
+of the available XMS functions.  The functions are divided into several
+groups:
+
+        1. Driver Information Functions (0h)
+        2. HMA Management Functions (1h-2h)
+        3. A20 Management Functions (3h-7h)
+        4. Extended Memory Management Functions (8h-Fh)
+        5. Upper Memory Management Functions (10h-11h)
+
+!doc xms20_drv_check
+DETERMINING IF AN XMS DRIVER IS INSTALLED
+
+    The recommended way of determining if an XMS driver is installed is to
+set AH=43h and AL=00h and then execute INT 2Fh.  If an XMS driver is available,
+80h will be returned in AL.
+
+    ~Example~:
+            ; Is an XMS driver installed?
+            mov     ax,4300h
+            int     2Fh         
+            cmp     al,80h  
+            jne     NoXMSDriver
+            
+
+!doc xms20_call_api
+CALLING THE API FUNCTIONS
+
+    Programs can execute INT 2Fh with AH=43h and AL=10h to obtain the address
+of the driver's control function.  The address is returned in ES:BX.  This
+function is called to access all of the XMS functions.  It should be called
+with AH set to the number of the API function requested.  The API function
+will put a success code of 0001h or 0000h in AX.  If the function succeeded
+(AX=0001h), additional information may be passed back in BX and DX.  If the
+function failed (AX=0000h), an error code may be returned in BL.  Valid
+error codes have their high bit set.  Developers should keep in mind that
+some of the XMS API functions may not be implemented by all drivers and will
+return failure in all cases.
+
+    ~Example~:
+            ; Get the address of the driver's control function
+            mov     ax,4310h
+            int     2Fh
+            mov     word ptr [XMSControl],bx        ; XMSControl is a DWORD
+            mov     word ptr [XMSControl+2],es
+            
+            ; Get the XMS driver's version number
+            mov     ah,00h
+            call    [XMSControl]    ; Get XMS Version Number
+
+    ~NOTE~: Programs should make sure that at least 256 bytes of stack space
+          is available before calling XMS API functions.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_func_list
+API FUNCTION DESCRIPTIONS
+
+    The following XMS API functions are available:
+
+!link xms20_api_00 00h Get XMS Version Number
+!link xms20_api_01 01h Request High Memory Area
+!link xms20_api_02 02h Release High Memory Area
+!link xms20_api_03 03h Global Enable A20
+!link xms20_api_04 04h Global Disable A20
+!link xms20_api_05 05h Local Enable A20
+!link xms20_api_06 06h Local Disable A20
+!link xms20_api_07 07h Query A20
+!link xms20_api_08 08h Query Free Extended Memory
+!link xms20_api_09 09h Allocate Extended Memory Block
+!link xms20_api_0a 0Ah Free Extended Memory Block
+!link xms20_api_0b 0Bh Move Extended Memory Block
+!link xms20_api_0c 0Ch Lock Extended Memory Block
+!link xms20_api_0d 0Dh Unlock Extended Memory Block
+!link xms20_api_0e 0Eh Get Handle Information
+!link xms20_api_0f 0Fh Reallocate Extended Memory Block
+!link xms20_api_10 10h Request Upper Memory Block
+!link xms20_api_11 11h Release Upper Memory Block
+
+!link xms20_error Error code list
+
+!doc xms20_api_00
+Get XMS Version Number (Function 00h)
+
+    ARGS:   AH = 00h
+    RETS:   AX = XMS version number
+            BX = Driver internal revision number
+            DX = 0001h if the HMA exists, 0000h otherwise
+    ERRS:   None
+
+    This function returns with AX equal to a 16-bit BCD number representing
+the revision of the DOS Extended Memory Specification which the driver
+implements (e.g. AX=0235h would mean that the driver implemented XMS version
+2.35).        BX is set equal to the driver's internal revision number mainly for
+debugging purposes.  DX indicates the existence of the HMA (not its
+availability) and is intended mainly for installation programs.
+    
+    ~NOTE~: This document defines version 2.00 of the specification.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_01
+Request High Memory Area (Function 01h)
+
+    ARGS:   AH = 01h
+            If the caller is a TSR or device driver,
+                DX = Space needed in the HMA by the caller in bytes
+            If the caller is an application program,
+                DX = FFFFh     
+    RETS:   AX = 0001h if the HMA is assigned to the caller, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = 90h if the HMA does not exist
+            BL = 91h if the HMA is already in use
+            BL = 92h if DX is less than the /HMAMIN= parameter
+
+    This function attempts to reserve the 64K-16 byte high memory area for
+the caller.  If the HMA is currently unused, the caller's size parameter is
+compared to the /HMAMIN= parameter on the driver's command line.  If the
+value passed by the caller is greater than or equal to the amount specified
+by the driver's parameter, the request succeeds.  This provides the ability
+to ensure that programs which use the HMA efficiently have priority over
+those which do not.
+
+    ~NOTE~: See the sections "Prioritizing HMA Usage" and "High Memory Area
+          Restrictions" below for more information.
+
+!link xms20_hma_prio Prioritizing HMA usage
+!link xms20_hma_restictions High Memory Area restrictions
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_02
+Release High Memory Area (Function 02h)
+
+    ARGS:   AH = 02h
+    RETS:   AX = 0001h if the HMA is successfully released, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = 90h if the HMA does not exist
+            BL = 93h if the HMA was not allocated
+
+    This function releases the high memory area and allows other programs to
+use it.  Programs which allocate the HMA must release it before exiting.  
+When the HMA has been released, any code or data stored in it becomes invalid
+and should not be accessed.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_03
+Global Enable A20 (Function 03h)
+
+    ARGS:   AH = 03h
+    RETS:   AX = 0001h if the A20 line is enabled, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = 82h if an A20 error occurs
+
+    This function attempts to enable the A20 line.  It should only be used
+by programs which have control of the HMA.  The A20 line should be turned
+off via Function 04h (Global Disable A20) before a program releases control
+of the system.
+
+    ~NOTE~: On many machines, toggling the A20 line is a relatively slow
+          operation.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_04
+Global Disable A20 (Function 04h)
+
+    ARGS:   AH = 04h
+    RETS:   AX = 0001h if the A20 line is disabled, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = 82h if an A20 error occurs
+            BL = 94h if the A20 line is still enabled
+    
+    This function attempts to disable the A20 line.  It should only be used
+by programs which have control of the HMA.  The A20 line should be disabled
+before a program releases control of the system.
+
+    ~NOTE~: On many machines, toggling the A20 line is a relatively slow
+          operation.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_05
+Local Enable A20 (Function 05h)
+
+    ARGS:   AH = 05h
+    RETS:   AX = 0001h if the A20 line is enabled, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = 82h if an A20 error occurs
+
+    This function attempts to enable the A20 line.  It should only be used
+by programs which need direct access to extended memory.  Programs which use
+this function should call Function 06h (Local Disable A20) before releasing
+control of the system.
+
+    ~NOTE~: On many machines, toggling the A20 line is a relatively slow
+          operation.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_06
+Local Disable A20 (Function 06h)
+
+    ARGS:   AH = 06h
+    RETS:   AX = 0001h if the function succeeds, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = 82h if an A20 error occurs
+            BL = 94h if the A20 line is still enabled
+
+    This function cancels a previous call to Function 05h (Local Enable
+A20).  It should only be used by programs which need direct access to
+extended memory.  Previous calls to Function 05h must be canceled before
+releasing control of the system.
+
+    ~NOTE~: On many machines, toggling the A20 line is a relatively slow
+          operation.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_07
+Query A20 (Function 07h)
+
+    ARGS:   AH = 07h
+    RETS:   AX = 0001h if the A20 line is physically enabled, 0000h otherwise
+    ERRS:   BL = 00h if the function succeeds
+            BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+
+    This function checks to see if the A20 line is physically enabled.  It
+does this in a hardware independent manner by seeing if "memory wrap" occurs.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_08
+Query Free Extended Memory (Function 08h)
+
+    ARGS:   AH = 08h
+    RETS:   AX = Size of the largest free extended memory block in K-bytes
+            DX = Total amount of free extended memory in K-bytes
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = A0h if all extended memory is allocated
+
+    This function returns the size of the largest available extended memory
+block in the system.
+
+    ~NOTE~: The 64K HMA is not included in the returned value even if it is
+          not in use.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_09
+Allocate Extended Memory Block (Function 09h)
+
+    ARGS:   AH = 09h
+            DX = Amount of extended memory being requested in K-bytes
+    RETS:   AX = 0001h if the block is allocated, 0000h otherwise
+            DX = 16-bit handle to the allocated block
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = A0h if all available extended memory is allocated
+            BL = A1h if all available extended memory handles are in use
+            
+    This function attempts to allocate a block of the given size out of the
+pool of free extended memory.  If a block is available, it is reserved
+for the caller and a 16-bit handle to that block is returned.  The handle
+should be used in all subsequent extended memory calls.  If no memory was
+allocated, the returned handle is null.
+
+    ~NOTE~: Extended memory handles are scarce resources.  Programs should
+          try to allocate as few as possible at any one time.  When all
+          of a driver's handles are in use, any free extended memory is
+          unavailable.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_0a
+Free Extended Memory Block (Function 0Ah)
+
+    ARGS:   AH = 0Ah
+            DX = Handle to the allocated block which should be freed
+    RETS:   AX = 0001h if the block is successfully freed, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = A2h if the handle is invalid
+            BL = ABh if the handle is locked
+
+    This function frees a block of extended memory which was previously
+allocated using Function 09h (Allocate Extended Memory Block).  Programs
+which allocate extended memory should free their memory blocks before
+exiting.  When an extended memory buffer is freed, its handle and all data
+stored in it become invalid and should not be accessed.
+
+
+!doc xms20_api_0b
+Move Extended Memory Block (Function 0Bh)
+
+    ~ARGS~:   ~AH~ = 0Bh
+            ~DS:SI~ = Pointer to an Extended Memory Move Structure (see below)
+
+    ~RETS~:   ~AX~ = ~0001h~ if the move is successful, ~0000h~ otherwise
+
+    ~ERRS~:   ~BL = 80h~ if the function is not implemented
+            ~BL = 81h~ if a VDISK device is detected
+            ~BL = 82h~ if an A20 error occurs
+            ~BL = A3h~ if the SourceHandle is invalid
+            ~BL = A4h~ if the SourceOffset is invalid
+            ~BL = A5h~ if the DestHandle is invalid
+            ~BL = A6h~ if the DestOffset is invalid
+            ~BL = A7h~ if the Length is invalid
+            ~BL = A8h~ if the move has an invalid overlap
+            ~BL = A9h~ if a parity error occurs
+
+  Extended Memory Move Structure Definition:
+
+      ExtMemMoveStruct    ~struc~
+          Length              ~dd~  ?   ; 32-bit number of bytes to transfer
+          SourceHandle        ~dw~  ?   ; Handle of source block
+          SourceOffset        ~dd~  ?   ; 32-bit offset into source 
+          DestHandle          ~dw~  ?   ; Handle of destination block
+          DestOffset          ~dd~  ?   ; 32-bit offset into destination block
+      ExtMemMoveStruct    ~ends~
+            
+    This function attempts to transfer a block of data from one location to
+another.  It is primarily intended for moving blocks of data between
+conventional memory and extended memory, however it can be used for moving
+blocks within conventional memory and within extended memory.
+
+    ~NOTE~: If ~SourceHandle~ is set to 0000h, the ~SourceOffset~ is interpreted
+          as a standard segment:offset pair which refers to memory that is
+          directly accessible by the processor.  The segment:offset pair
+          is stored in Intel DWORD notation.  The same is true for ~DestHandle~
+          and ~DestOffset~.
+          
+          ~SourceHandle~ and ~DestHandle~ do not have to refer to locked memory
+          blocks.
+          
+          ~Length must be even~. Although not required, WORD-aligned moves
+          can be significantly faster on most machines.  DWORD aligned move
+          can be even faster on 80386 machines.
+          
+          If the source and destination blocks overlap, only forward moves
+          (i.e. where the source base is less than the destination base) are
+          guaranteed to work properly.
+          
+          Programs should not enable the A20 line before calling this
+          function.  The state of the A20 line is preserved.
+
+          This function is guaranteed to provide a reasonable number of
+          interrupt windows during long transfers.
+
+!link xms351_api CBh Move Extended Memory Block (XMS 3.51)
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_0c
+Lock Extended Memory Block (Function 0Ch)
+
+    ARGS:   AH = 0Ch
+            DX = Extended memory block handle to lock
+    RETS:   AX = 0001h if the block is locked, 0000h otherwise
+            DX:BX = 32-bit linear address of the locked block
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = A2h if the handle is invalid
+            BL = ACh if the block's lock count overflows
+            BL = ADh if the lock fails
+            
+    This function locks an extended memory block and returns its base 
+address as a 32-bit linear address.  Locked memory blocks are guaranteed not
+to move.  The 32-bit pointer is only valid while the block is locked.
+Locked blocks should be unlocked as soon as possible.
+
+    ~NOTE~: A block does not have to be locked before using Function 0Bh (Move
+          Extended Memory Block).
+          
+          "Lock counts" are maintained for EMBs.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_0d
+Unlock Extended Memory Block (Function 0Dh)
+
+    ARGS:   AH = 0Dh
+            DX = Extended memory block handle to unlock
+    RETS:   AX = 0001h if the block is unlocked, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = A2h if the handle is invalid
+            BL = AAh if the block is not locked
+    
+    This function unlocks a locked extended memory block.  Any 32-bit
+pointers into the block become invalid and should no longer be used.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_0e
+Get EMB Handle Information (Function 0Eh)
+
+    ARGS:   AH = 0Eh
+            DX = Extended memory block handle
+    RETS:   AX = 0001h if the block's information is found, 0000h otherwise
+            BH = The block's lock count
+            BL = Number of free EMB handles in the system
+            DX = The block's length in K-bytes
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = A2h if the handle is invalid
+
+    This function returns additional information about an extended memory
+block to the caller.
+
+    ~NOTE~: To get the block's base address, use Function 0Ch (Lock Extended
+          Memory Block).
+          
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_0f
+Reallocate Extended Memory Block (Function 0Fh)
+
+    ARGS:   AH = 0Fh
+            BX = New size for the extended memory block in K-bytes
+            DX = Unlocked extended memory block handle to reallocate
+    RETS:   AX = 0001h if the block is reallocated, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = 81h if a VDISK device is detected
+            BL = A0h if all available extended memory is allocated
+            BL = A1h if all available extended memory handles are in use
+            BL = A2h if the handle is invalid
+            BL = ABh if the block is locked
+
+    This function attempts to reallocate an unlocked extended memory block
+so that it becomes the newly specified size.  If the new size is smaller
+than the old block's size, all data at the upper end of the old block is
+lost.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_10
+Request Upper Memory Block (Function 10h)
+
+    ARGS:   AH = 10h
+            DX = Size of requested memory block in paragraphs
+    RETS:   AX = 0001h if the request is granted, 0000h otherwise
+            BX = Segment number of the upper memory block
+            If the request is granted,
+                DX = Actual size of the allocated block in paragraphs
+            otherwise,
+                DX = Size of the largest available UMB in paragraphs
+    ERRS:   BL = 80h if the function is not implemented
+            BL = B0h if a smaller UMB is available
+            BL = B1h if no UMBs are available
+
+    This function attempts to allocate an upper memory block to the caller.
+If the function fails, the size of the largest free UMB is returned in DX.
+
+    ~NOTE~: By definition UMBs are located below the 1MB address boundary.
+          The A20 Line does not need to be enabled before accessing an
+          allocated UMB.
+
+          UMBs are paragraph aligned.
+
+          To determine the size of the largest available UMB, attempt to
+          allocate one with a size of FFFFh.
+
+          UMBs are unaffected by EMS calls.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_api_11
+Release Upper Memory Block (Function 11h)
+
+    ARGS:   AH = 11h
+            DX = Segment number of the upper memory block
+    RETS:   AX = 0001h if the block was released, 0000h otherwise
+    ERRS:   BL = 80h if the function is not implemented
+            BL = B2h if the UMB segment number is invalid
+
+    This function frees a previously allocated upper memory block.  When an
+UMB has been released, any code or data stored in it becomes invalid and
+should not be accessed.
+
+!link xms20_api_func_list API function descriptions
+!link xms20_error Error code list
+
+!doc xms20_hma_prio
+PRIORITIZING HMA USAGE
+
+  For DOS users to receive the maximum benefit from the High Memory Area,
+programs which use the HMA must store as much of their resident code in it as
+is possible.  It is very important that developers realize that the HMA is
+allocated as a single unit. 
+
+  For example, a TSR program which grabs the HMA and puts 10K of code into
+it may prevent a later TSR from putting 62K into the HMA. Obviously, regular
+DOS programs would have more memory available to them below the 640K line if
+the 62K TSR was moved into the HMA instead of the 10K one.
+
+  The first method for dealing with conflicts such as this is to require 
+programs which use the HMA to provide a command line option for disabling
+this feature.  It is crucial that TSRs which do not make full use of the HMA
+provide such a switch on their own command line (suggested name "/NOHMA").
+
+  The second method for optimizing HMA usage is through the /HMAMIN=
+parameter on the XMS device driver line. The number after the parameter
+is defined to be the minimum amount of HMA space (in K-bytes) used by any
+driver or TSR.
+  For example, if "DEVICE=HIMEM.SYS /HMAMIN=48" is in a user's CONFIG.SYS
+file, only programs which request at least 48K would be allowed to allocate
+the HMA.  This number can be adjusted either by installation programs or by
+the user himself. If this parameter is not specified, the default value of
+0 is used causing the HMA to be allocated on a first come, first served basis.
+
+  Note that this problem does not impact application programs. If the HMA
+is available when an application program starts, the application is free to
+use as much or as little of the HMA as it wants.  For this reason,
+applications should pass FFFFh in DX when calling Function 01h.
+
+!doc xms20_hma_restictions
+HIGH MEMORY AREA RESTRICTIONS
+
+  Far pointers to data located in the HMA cannot be passed to DOS. DOS
+normalizes any pointer which is passed into it. This will cause data addresses
+in the HMA to be invalidated.
+
+  Disk I/O directly into the HMA (via DOS, INT 13h, or otherwise) is not
+recommended.
+
+  Programs, especially drivers and TSRs, which use the HMA ~MUST~ use as much
+of it as possible. If a driver or TSR is unable to use at least 90% of the
+available HMA (typically 58K), they must provide a command line switch for
+overriding HMA usage. This will allow the user to configure his machine for
+optimum use of the HMA.
+
+  Device drivers and TSRs cannot leave the A20 line permanently turned on.
+Several applications rely on 1MB memory wrap and will overwrite the HMA if
+the A20 line is left enabled potentially causing a system crash.
+
+  Interrupt vectors must not point into the HMA. This is a result of the
+previous restriction. Note that interrupt vectors can point into any allocated
+upper memory blocks however.
+
+!doc xms20_error
+ERROR CODE INDEX
+
+If AX=0000h when a function returns and the high bit of BL is set,
+
+    BL=80h if the function is not implemented
+       81h if a VDISK device is detected
+       82h if an A20 error occurs
+       8Eh if a general driver error occurs
+       8Fh if an unrecoverable driver error occurs
+       90h if the HMA does not exist
+       91h if the HMA is already in use
+       92h if DX is less than the /HMAMIN= parameter
+       93h if the HMA is not allocated
+       94h if the A20 line is still enabled
+       A0h if all extended memory is allocated
+       A1h if all available extended memory handles are in use
+       A2h if the handle is invalid
+       A3h if the SourceHandle is invalid
+       A4h if the SourceOffset is invalid
+       A5h if the DestHandle is invalid
+       A6h if the DestOffset is invalid
+       A7h if the Length is invalid
+       A8h if the move has an invalid overlap
+       A9h if a parity error occurs
+       AAh if the block is not locked
+       ABh if the block is locked
+       ACh if the block's lock count overflows
+       ADh if the lock fails
+       B0h if a smaller UMB is available
+       B1h if no UMBs are available
+       B2h if the UMB segment number is invalid
+
+!doc xms20_impl_notes
+IMPLEMENTATION NOTES FOR DOS XMS DRIVERS
+
+  A DOS XMS driver's control function must begin with code similar to the
+following:
+
+XMMControl  proc    far
+         jmp     short XCControlEntry    ; For "hookability"
+         nop                             ; NOTE: The jump must be a short
+         nop                             ;  jump to indicate the end of
+         nop                             ;  any hook chain.        The nop's
+                                         ;  allow a far jump to be
+                                         ;  patched in.
+XCControlEntry:
+
+  XMS drivers must preserve all registers except those containing
+returned values across any function call.
+
+  XMS drivers are required to hook ~INT 15h~ and watch for calls to
+functions 87h (Block Move) and 88h (Extended Memory Available).  The
+~INT 15h~ Block Move function must be hooked so that the state of the A20
+line is preserved across the call. The ~INT 15h~ Extended Memory
+Available function must be hooked to return 0h to protect the HMA.
+
+  In order to maintain compatibility with existing device drivers, DOS XMS
+drivers must not hook ~INT 15h~ until the first non-Version Number call
+to the control function is made.
+
+  XMS drivers are required to check for the presence of drivers which
+use the IBM VDISK allocation scheme.  Note that it is not sufficient to
+check for VDISK users at installation time but at the time when the HMA
+is first allocated.  If a VDISK user is detected, the HMA must not be
+allocated.        Microsoft will publish a standard method for detecting
+drivers which use the VDISK allocation scheme.
+
+  XMS drivers which have a fixed number of extended memory handles (most
+do) should implement a command line parameter for adjusting that number
+(suggested name "/NUMHANDLES=")
+
+  XMS drivers should make sure that the major DOS version number is
+greater than or equal to 3 before installing themselves.
+
+  UMBs cannot occupy memory addresses that can be banked by EMS 4.0.
+EMS 4.0 takes precedence over UMBs for physically addressable memory.
+
+  All driver functions must be re-entrant.  Care should be taken to not
+leave interrupts disabled for long periods of time.
+
+  Allocation of a zero length extended memory buffer is allowed.  Programs
+which hook XMS drivers may need to reserve a handle for private use via
+this method.  Programs which hook an XMS driver should pass all requests
+for zero length EMBs to the next driver in the chain.
+
+  Drivers should control the A20 line via an "enable count." Local Enable
+only enables the A20 line if the count is zero. It then increments the count.
+Local Disable only disables A20 if the count is one. It then decrements the
+count. Global Enable/Disable keeps a flag which indicates the state of A20.
+They use Local Enable/Disable to actually change the state.
+
+~IMPLEMENTATION NOTES FOR HIMEM.SYS:~
+---
+
+  HIMEM.SYS currently supports true AT-compatibles, 386 AT machines, IBM
+PS/2s, AT&T 6300 Plus systems and Hewlett Packard Vectras.
+
+  If HIMEM finds that it cannot properly control the A20 line or if there
+is no extended memory available when HIMEM.SYS is invoked, the driver
+does not install itself.  HIMEM.SYS displays the message "High Memory
+Area Unavailable" when this situation occurs.
+
+  If HIMEM finds that the A20 line is already enabled when it is invoked,
+it will NOT change the A20 line's state.  The assumption is that whoever
+enabled it knew what they were doing.  HIMEM.SYS displays the message "A20
+Line Permanently Enabled" when this situation occurs.
+
+  HIMEM.SYS is incompatible with IBM's VDISK.SYS driver and other drivers
+which use the VDISK scheme for allocating extended memory.  However, 
+HIMEM does attempt to detect these drivers and will not allocate the
+HMA if one is found.
+
+  HIMEM.SYS supports the optional "/HMAMIN=" parameter.  The valid values
+are decimal numbers between 0 and 63.
+
+  By default, HIMEM.SYS has 32 extended memory handles available for use.
+This number may be adjusted with the "/NUMHANDLES=" parameter.  The
+maximum value for this parameter is 128 and the minimum is 0.  Each
+handle currently requires 6 bytes of resident space.
+
+!doc xms20_copyright
+Copyright
+
+Copyright (c) 1988, Microsoft Corporation, Lotus Development
+Corporation, Intel Corporation, and AST Research, Inc.
+
+Microsoft Corporation                                            
+Box 97017
+16011 NE 36th Way                                       
+Redmond, WA 98073
+
+LOTUS (r)
+INTEL (r)
+MICROSOFT (r)
+AST (r) Research
+
+This specification was jointly developed by Microsoft Corporation,
+Lotus Development Corporation, Intel Corporation,and AST Research,
+Inc. Although it has been released into the public domain and is not
+confidential or proprietary, the specification is still the copyright
+and property of Microsoft Corporation, Lotus Development Corporation,
+Intel Corporation, and AST Research, Inc.
+
+Disclaimer of Warranty
+
+MICROSOFT CORPORATION, LOTUS DEVELOPMENT CORPORATION, INTEL
+CORPORATION, AND AST RESEARCH, INC., EXCLUDE ANY AND ALL IMPLIED
+WARRANTIES, INCLUDING WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE. NEITHER MICROSOFT NOR LOTUS NOR INTEL NOR AST
+RESEARCH MAKE ANY WARRANTY OF REPRESENTATION, EITHER EXPRESS OR
+IMPLIED, WITH RESPECT TO THIS SPECIFICATION, ITS QUALITY,
+PERFORMANCE, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+NEITHER MICROSOFT NOR LOTUS NOR INTEL NOR AST RESEARCH SHALL HAVE ANY
+LIABILITY FOR SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING
+OUT OF OR RESULTING FROM THE USE OR MODIFICATION OF THIS
+SPECIFICATION.
+
+This specification uses the following trademarks:
+
+Intel is a registered trademark of Intel Corporation, Microsoft is a
+registered trademark of Microsoft Corporation, Lotus is a registered
+trademark of Lotus Development Corporation, and AST is a registered
+trademark of AST Research, Inc.
+
+!doc xms35_api
+XMS v3.5 API
+
+ XMS v3.5 has been created to allow accessing extended memory beyond the 4 GB
+barrier. 
+
+To achieve this, the XMS v3.0 API has been extended:
+  
+~AH=0C8h~: query free super-extended memory. Returns in EAX largest free block
+         in kB, in EDX the total amount (in kB) of free super-extended memory.
+         AX=0 indicates an error.
+  
+~AH=0C9h~: allocate block of super-extended memory. Expects in EDX the
+         requested amount of memory in kB. Returns AX=0 if an error occured,
+           else AX is 1 and the handle of the block is in DX.
+
+~AH=0CCh~: lock a (super-extended) memory block. Expects handle in DX. Returns
+         64-bit physical address of locked block in EDX:EBX. Returns AX=0
+         if an error occured.
+
+XMS function 00 (Get Version) will return ~AX=0350h~, that is version 3.50.
+
+!link xms20_api_00 00h Get XMS Version Number
+
+!doc xms351_api
+XMS v3.51 API
+  
+  XMS v3.51 extends the v3.50 API by another function:
+
+  ~AH=0CBh~: super-extended block move function. Register setup is like XMS
+           function 0Bh. However, the structure that holds source and
+           destination of the memory block to copy has been extended by two
+           1-byte fields that must be filled with bits 32-39 of the source
+           and destination address.
+
+sxms_move ~struct~
+   len           ~dd~  ?   ;  ~+0~: block length in bytes
+   src_handle    ~dw~  ?   ;  ~+4~: source handle
+   src_offset    ~dd~  ?   ;  ~+6~: offset into source
+   dst_handle    ~dw~  ?   ; ~+10~: destination handle
+   dst_offset    ~dd~  ?   ; ~+12~: offset into destination
+   src_high      ~db~  ?   ; ~+16~: ~NEW~: bits 32-39 of source offset
+   dest_high     ~db~  ?   ; ~+17~: ~NEW~: bits 32-39 of destination offset
+sxms_move ~ends~
+
+!link xms20_api_0b 0Bh Move Extended Memory Block (XMS 2.0)
+
+!doc int15_E820
+BIOS Interrupt 15h, AX=E820h
+
+  Since the memory beyond the 4 GB limit must be managed exclusively,
+~INT 15, AX=E820h~ should be intercepted in a way that all memory blocks with
+addresses >= ~100000000h~ are changed from "available" to "reserved".
+
+!doc int15_87
+BIOS Interrupt 15h, AH=87h
+
+  In V86 mode, the XMM's 'move extended memory' functions (~AH=0Bh~ & ~AH=0CBh~)
+will need the help of the Expanded Memory Manager (EMM), since privileged
+code has to be executed. The only EMMs that currently support accessing
+memory beyond 4 GB are Jemm386/JemmEx v5.80+. Their ~INT 15~ API has been
+exhanced as well.
+  
+  Register setup for ~INT 15, AH=87h~: 
+   
+   AH: 87h
+   EAX[bits 16-31]: F00Fh
+   CX: F00Fh
+   ECX[bits 16-31]: size of block in words
+   DS:SI: same as the standard ( pointing to a GDT ), descriptors 2 & 3
+          defining address bits 0-31 of source/destination region.
+   DX: address bits 32-47 of the source region.
+   BX: address bits 32-47 of the destination region.
+
+If the call succeeded, the carry flag is cleared and register AH is 0.
+
+If an error occured (for example, CPU doesn't support PSE), the carry
+flag is set and AH is != 0.
+
+!doc tp_error_codes
+Turbo/Free Pascal Error codes
+
+          1 Invalid function number
+          2 File not found
+          3 Path not found
+          4 Too many open files
+          5 File access denied
+          6 Invalid file handle
+         12 Invalid file access code
+         15 Invalid drive number
+         16 Cannot remove current directory
+         17 Cannot rename across drives
+         18 No more files
+        100 Disk read error
+        101 Disk write error
+        102 File not assigned
+        103 File not open
+        104 File not open for input
+        105 File not open for output
+        106 Invalid numeric format
+        150 Disk is write-protected
+        151 Bad drive request struct length
+        152 Drive not ready
+        154 CRC error in data
+        156 Disk seek error
+        157 Unknown media type
+        158 Sector Not Found
+        159 Printer out of paper
+        160 Device write fault
+        161 Device read fault
+        162 Hardware failure
+        200 Division by zero
+        201 Range check error
+        202 Stack overflow error
+        203 Heap overflow error
+        204 Invalid pointer operation
+        205 Floating point overflow
+        206 Floating point underflow
+        207 Invalid floating point operation
+        208 Overlay manager not installed
+        209 Overlay file read error
+        210 Object not initialized
+        211 Call to abstract method
+        212 Stream registration error
+        213 Collection index out of range
+        214 Collection overflow error
+        215 Arithmetic overflow error
+        216 General Protection fault
+
+!doc INT213D
+Open existing file
+
+        AH = 3Dh
+        AL = access and sharing modes
+        DS:DX -> ASCIZ filename
+        CL = attribute mask of files to look for (server call only)
+
+~Return~: CF clear if successful
+            AX = file handle
+        CF set on error
+            AX = error code (01h,02h,03h,04h,05h,0Ch,56h)
+
+~NOTE~: file pointer is set to start of file if SHARE or a network is loaded,
+the file open may fail if the file is already open, depending on the
+combination of sharing modes file handles which are inherited from a parent
+also inherit sharing and access restrictions files may be opened even if
+given the hidden or system attributes under the FlashTek X-32 DOS extender,
+the pointer is in DS:EDX DR DOS checks the system password or explicitly
+supplied password at the end of the filename (following a semicolon) against
+the reserved field in the directory entry before allowing access sharing
+modes are only effective on local drives if SHARE is loaded.
+
+~Access and sharing modes~:
+ÚÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Bit(s) ³ Description                                                     ³
+ÃÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  2-0   ³ access mode                                                     ³
+³        ³ 000 read only                                                   ³
+³        ³ 001 write only                                                  ³
+³        ³ 010 read/write                                                  ³
+³        ³ 011 (DOS 5+ internal) passed to redirector on EXEC to allow     ³
+³        ³     case-sensitive filenames                                    ³
+ÃÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³   3    ³ reserved (0)                                                    ³
+ÃÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  6-4   ³ Sharing mode (DOS 3.0+)                                         ³
+³        ³ 000 compatibility mode                                          ³
+³        ³ 001 "DENYALL" prohibit both read and write access by others     ³
+³        ³ 010 "DENYWRITE" prohibit write access by others                 ³
+³        ³ 011 "DENYREAD" prohibit read access by others                   ³
+³        ³ 100 "DENYNONE" allow full access by others                      ³
+³        ³ 111 network FCB (only available during server call)             ³
+ÃÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³   7    ³ Inheritance                                                     ³
+³        ³ if set, file is private to current process and will not be      ³
+³        ³ inherited by child processes                                    ³
+ÀÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+!doc INT213C
+Create file
+
+        AH = 3Ch
+        CX = file attributes (see #01401)
+        DS:DX -> ASCIZ filename
+
+~Return~: CF clear if successful
+            AX = file handle
+        CF set on error
+            AX = error code (03h,04h,05h)
+
+~NOTE~: if a file with the given name exists, it is truncated to zero length
+under the FlashTek X-32 DOS extender, the pointer is in DS:EDX DR DOS checks
+the system password or explicitly supplied password at the end of the
+filename against the reserved field in the directory entry before allowing
+access
+!doc INT213F
+Read from file
+
+        AH = 3Fh
+        BX = file handle
+        CX = number of bytes to read
+        DS:DX -> buffer for data
+
+~Return~: CF clear if successful
+            AX = number of bytes actually read (0 if at EOF before call)
+        CF set on error
+            AX = error code (05h,06h)
+
+~NOTE~: data is read beginning at current file position, and the file position
+is updated after a successful read the returned AX may be smaller than the
+request in CX if a partial read occurred if reading from CON, read stops at
+first CR under the FlashTek X-32 DOS extender, the pointer is in DS:EDX
+
+!doc INT2140
+Write to file
+
+        AH = 40h
+        BX = file handle
+        CX = number of bytes to write
+        DS:DX -> data to write
+
+~Return~: CF clear if successful
+            AX = number of bytes actually written
+        CF set on error
+            AX = error code (05h,06h)
+
+~NOTE~: if CX is zero, no data is written, and the file is truncated or
+extended to the current position data is written beginning at the current
+file position, and the file position is updated after a successful write
+for FAT32 drives, the file must have been opened with AX=6C00h with
+the "extended size" flag in order to expand the file beyond 2GB;
+otherwise the write will fail with error code 0005h (access denied)
+the usual cause for AX < CX on return is a full disk
+
+!doc INT2142
+LSeek - set/get current file position
+
+        AH = 42h
+        AL = origin of move
+            00h start of file
+            01h current file position
+            02h end of file
+        BX = file handle
+        CX:DX = (signed) offset from origin of new file position
+
+~Return~: CF clear if successful
+            DX:AX = new file position in bytes from start of file
+        CF set on error
+            AX = error code (01h,06h)
+
+~NOTE~: for origins 01h and 02h, the pointer may be positioned before the
+start of the file; no error is returned in that case (except under
+Windows NT), but subsequent attempts at I/O will produce errors if the
+new position is beyond the current end of file, the file will be extended
+by the next write (see AH=40h); for FAT32 drives, the file must have been
+opened with AX=6C00h with the "extended size" flag in order to expand the
+file beyond 2GB
+
+!doc INT213E
+Close file
+
+        AH = 3Eh
+        BX = file handle
+
+~Return~: CF clear if successful
+            AX destroyed
+        CF set on error
+            AX = error code (06h)
+
+~NOTE~: if the file was written to, any pending disk writes are performed,
+the time and date stamps are set to the current time, and the directory
+entry is updated recent versions of DOS preserve AH because some versions
+of Multiplan had a bug which depended on AH being preserved
+
+!doc INT21716C
+LFN Open or create file
+
+        AX = 716Ch
+        BX = access mode and sharing flags
+        CX = attributes
+        DX = action
+        DS:SI -> ASCIZ filename
+        DI = alias hint (number to append to short filename for
+             disambiguation)
+
+~Return~: CF clear if successful
+            AX = file handle
+            CX = action taken
+                0001h file opened
+                0002h file created
+                0003h file replaced
+        CF set on error
+            AX = error code
+                7100h if function not supported
+
+~Bitfields for Windows95 long-name open action~:
+ÚÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Bit(s) ³ Description                                                      ³
+ÃÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³   0    ³ open file (fail if file does not exist)                          ³
+³   1    ³ truncate file if it already exists (fail if file does not exist) ³
+³   4    ³ create new file if file does not already exist (fail if exists)  ³
+ÀÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+~NOTE~: the only valid combinations of multiple flags are bits 4&0 and 4&1
+
+~Bitfields for Windows95 file access/sharing modes~:
+ÚÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Bit(s)³ Description                                                       ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  2-0  ³ file access mode                                                  ³
+³       ³ 000 read-only                                                     ³
+³       ³ 001 write-only                                                    ³
+³       ³ 010 read-write                                                    ³
+³       ³ 100 read-only, do not modify file's last-access time              ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  6-4  ³ file sharing modes                                                ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³   7   ³ no-inherit flag                                                   ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³   8   ³ do not buffer data (requires that all reads/writes be exact       ³
+³       ³ physical sectors)                                                 ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³   9   ³ do not compress file even if volume normally compresses files     ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  10   ³ use alias hint in DI as numeric tail for short-name alias         ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ 12-11 ³ unused??? (0)                                                     ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  13   ³ return error code instead of generating INT 24h if critical error ³
+³       ³ while opening file                                                ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  14   ³ commit file after every write operation                           ³
+ÀÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+!doc INT2148
+Allocate memory
+
+        AH = 48h
+        BX = number of paragraphs to allocate
+
+~Return~: CF clear if successful
+            AX = segment of allocated block
+        CF set on error
+            AX = error code (07h,08h) (see #01680 at AH=59h/BX=0000h)
+            BX = size of largest available block
+
+~NOTE~: DOS 2.1-6.0 coalesces free blocks while scanning for a block to
+allocate .COM programs are initially allocated the largest available memory
+block, and should free some memory with AH=49h before attempting any
+allocations
+
+!link INT2149 INT 21 49 Free memory
+!link INT214A INT 21 4A Resize memory block
+
+!doc INT2149
+Free memory
+
+        AH = 49h
+        ES = segment of block to free
+
+~Return~: CF clear if successful
+        CF set on error
+            AX = error code (07h,09h)
+
+~NOTE~: apparently never returns an error 07h, despite official docs;
+DOS 2.1+ code contains only an error 09h exit DOS 2.1-6.0 does not coalesce
+adjacent free blocks when a block is freed, only when a block is allocated or
+resized the code for this function is identical in DOS 2.1-6.0 except for
+calls to start/end a critical section in DOS 3.0+
+
+!link INT2148 INT 21 48 Allocate memory
+!link INT214A INT 21 4A Resize memory block
+
+!doc INT214A
+Resize memory block
+
+        AH = 4Ah
+        BX = new size in paragraphs
+        ES = segment of block to resize
+
+~Return~: CF clear if successful
+        CF set on error
+            AX = error code (07h,08h,09h)
+            BX = maximum paragraphs available for specified memory block
+
+~NOTE~: under DOS 2.1-6.0, if there is insufficient memory to expand the block
+as much as requested, the block will be made as large as possible DOS 2.1-6.0
+coalesces any free blocks immediately following the block to be resized
+
+!link INT2148 INT 21 48 Allocate memory
+!link INT2149 INT 21 49 Free memory
+

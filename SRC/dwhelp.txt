@@ -1,0 +1,278 @@
+!doc dwhelp_index
+DWHELP
+
+  Welcome!
+
+!link dwhelp_users_guide Users guide
+End-user guide
+
+!link dwhelp_writers_guide Writers guide
+Here is description for input (text) file markup language for help compiler.
+
+!link dwhelp_progs_guide Programmers guide
+Description for binary .HLP file format.
+
+!link dwh_license License
+.HLP file format and produced .HLP files you can use 100% free without any
+additional payments.
+
+---
+
+        Latest version of this project can be free downloaded from
+                  ~https://github.com/DosWorld/dwhelp~
+
+!doc dwhelp_tools
+DWHELP Command line tools
+
+!link dwhelp_dwhadd        DWHADD.EXE - Add help to executable
+!link dwhelp_dwhsub        DWHSUB.EXE - Remove help from executable
+!link dwhelp_dwhc          DWHC.EXE   - Help compiler
+!link dwhelp_dwhdc         DWHDC.EXE  - Help decompiler
+!link dwhelp_dwhelp        DWHELP.EXE - Help viewer
+
+Command line tools can use EMS/XMS, but not required. Must work with 8086.
+
+!link dwh_license License
+
+!doc dwhelp_dwhadd
+DWHADD.EXE
+
+  This tool could be used to add your .HLP file to your executable file
+(.EXE or .COM). After it, DWHELP can read this help from executable.
+
+Usage:
+
+  ~DWHADD exefile hlpfile~
+
+  ~exefile~ - your executable file name
+  ~hlpfile~ - your help file name
+
+In case, if exefile alredy contains help, it will be removed and added new.
+
+!link dwhelp_tools Command line tools
+!link dwh_license License
+
+!doc dwhelp_dwhsub
+DWHSUB.EXE
+
+  This tool could be used to remove help from your executable file.
+
+Usage:
+
+  ~DWHSUB exefile~
+
+  ~exefile~ - your executable file name
+
+!link dwhelp_tools Command line tools
+!link dwh_license License
+
+!doc dwhelp_dwhc
+DWHC.EXE
+
+  This is a help compiler.
+
+Usage:
+
+  ~DWHC textfile~
+
+  ~textfile~ - your text file name
+
+  As result, you will receive compiled file with the same name but .HLP
+extension. For example, MY.TXT -> MY.HLP
+
+After then, you can attach this .HLP file to your executable file with DWHADD.
+
+  DWHC output to STDOUT (internal) atricles number and id and links. Article
+number can be used as second parameter to DWHELP.
+
+~Example:~
+
+Compile dwhelp.txt
+    0:DWHELP_INDEX
+       ->6:DWHELP_USERS_GUIDE
+       ->8:DWHELP_WRITERS_GUIDE
+       ->7:DWHELP_PROGS_GUIDE
+       ->9:DWH_LICENSE
+    1:DWHELP_TOOLS
+       ->2:DWHELP_DWHADD
+       ->3:DWHELP_DWHSUB
+       ->4:DWHELP_DWHC
+       ->5:DWHELP_DWHELP
+       ->9:DWH_LICENSE
+    2:DWHELP_DWHADD
+       ->1:DWHELP_TOOLS
+       ->9:DWH_LICENSE
+
+!link dwhelp_writers_guide Writers guide
+!link dwhelp_tools Command line tools
+!link dwh_license License
+
+!doc dwhelp_dwhdc
+DWHDC.EXE
+
+  This is a help ~de~compiler - decompile .HLP file and print source text
+to ~STDOUT~.
+
+Usage:
+
+  ~DWHDC helpfile~
+
+  ~helpfile~ - your help file name
+
+!link dwhelp_tools Command line tools
+!link dwh_license License
+
+!doc dwhelp_dwhelp
+DWHELP.EXE
+
+  This is help-viewer.
+
+Usage:
+
+  ~DWHELP helpfile articleNum~
+
+~helpfile~   - .HLP or executable
+~articleNum~ - (optional) number of article, default is 0
+
+!link dwhelp_tools Command line tools
+!link dwh_license License
+
+!doc dwhelp_users_guide
+Users guide
+
+!link dwhelp_tools Command line tools
+
+!doc dwhelp_progs_guide
+Programmers guide
+
+!link dwh_rle_unpack RLE decompression for strings
+
+!doc dwhelp_writers_guide
+Writers guide
+
+  DWHELP use plain text file with a small markup:
+
+1. Document markup
+2. Text formatting markup
+
+  Unicode is not supported :(
+
+---
+
+~1. Document markup~
+
+  Document markup allow organize hypertext ability for your document. Here is
+only two tags: ~!doc~ and ~!link~ - this is everythign what you must known
+about it :)
+
+  ~NOTE:~ Each tag must be placed into begin of new line without spaces.
+
+  ~!doc~ - used to mark start new document and must contain "document id".
+
+Example: !doc copyright_notice
+
+  So, in a future, you can use string "copyright_notice" in link
+to this document.
+  
+  ~!link~ - used to add link to another document
+
+Example: !link copyright_notice My copyright text
+
+  In this example, user will see text "My copyright text" as link.
+
+---
+
+~2. Text formatting markup~
+
+   Here is no rich markup definitions, only two:
+
+1. You can use ~---~ (minus, 3 times) as markup for horizontal line.
+
+2. "Wave-form minus" (i can't show it due to lack of escape sequence -
+ASCII 0x7E or 126 in decimal). This wave-minus mark highlighted text begin
+and end.
+
+   All others - you can format your text as a plain document, including
+ASCII art.
+
+---
+
+~3. Full example~
+
+   ~!doc my_document~
+   Root document
+   Some text. Some text.
+   ---
+   Some text.
+   !link doc2 See another document
+   Some text.
+
+   ~!doc doc2~
+   Second document
+   Some text.
+
+~Example explanation:~
+
+   This help contains two document (with ids: ~my_document~, ~doc2~),
+First document (title: "Root document") contains link to second
+(title: "Second document"). Link is visible as text "See another document".
+
+See also:   
+
+!link dwhelp_dwhc Help compiler
+!link dwhelp_tools Command line tools
+
+!doc dwh_license
+MIT License
+
+Copyright (c) 2025 DosWorld
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+~https://github.com/DosWorld/dwhelp~
+
+!doc dwh_rle_unpack
+RLE decompression for strings in DWHELP
+
+  Here is reference implementation:
+
+~FUNCTION dwh_rle_unpack(VAR s : STRING) : STRING;~
+VAR
+        r      : STRING;
+        i, len : INTEGER;
+        c      : CHAR;
+BEGIN
+        r[0] := '';
+        i := 1;
+        len := Length(s);
+        WHILE i <= len DO BEGIN
+                c := s[i];
+                IF ORD(c) IN [3..15] THEN BEGIN
+                        FillChar(r[ORD(r[0]) + 1], ORD(c), s[i + 1]);
+                        INC(r[0], ORD(c));
+                        INC(i, 2);
+                END ELSE BEGIN
+                        INC(r[0]);
+                        r[ORD(r[0])] := c;
+                        INC(i);
+                END;
+        END;
+        dwh_rle_unpack := r;
+END;
+
