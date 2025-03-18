@@ -79,6 +79,11 @@ CLR_TITLE    = $3E;
 LINE_CHAR    = #$C4;
 LINK_CHAR    = #$10;
 
+FUNCTION Min(w1, w2 : WORD) : WORD;
+BEGIN
+        IF w1 < w2 THEN Min := w1 ELSE Min := w2;
+END;
+
 PROCEDURE init(VAR ctx : TDWH_VIEW_CTX; id : WORD; fname : STRING);
 BEGIN
         FillChar(ctx, SizeOf(TDWH_VIEW_CTX), #0);
@@ -107,23 +112,25 @@ BEGIN
         LocateLine := i;
 END;
 
-PROCEDURE high_light(VAR hl_chars : STRING);
-VAR
-        len    : WORD;
-        p      : PCHAR;
+PROCEDURE high_light(y, width : WORD; VAR hl_chars : STRING);
+VAR     p      : PCHAR;
 BEGIN
-        len := scr.getheight * scr.getwidth;
-        p := scr.screen;
-        WHILE len <> 0 DO BEGIN
+        p := @scr.screen[y * (width SHL 1)];
+        WHILE width <> 0 DO BEGIN
                 IF p^ <> ' ' THEN IF p[1] = CHR(CLR_TEXT) THEN BEGIN
                         p[1] := hl_chars[ORD(p^) + 1];
                 END;
                 INC(p, 2);
-                DEC(len);
+                DEC(width);
         END;
 END;
 
-PROCEDURE PrintLine(y, width : INTEGER; abody : PCHAR; id : WORD; VAR aptr, nidx : WORD; istitle, isselrow : BOOLEAN);
+PROCEDURE PrintLine(y, width : INTEGER;
+abody : PCHAR;
+id : WORD; VAR aptr, nid : WORD;
+istitle, isselrow : BOOLEAN;
+VAR hl_chars : STRING);
+
 VAR
         s   : STRING;
         c   : BYTE;
@@ -142,11 +149,12 @@ BEGIN
                         upstr(s);
                 END;
                 scr.printhl(1, y, c, CLR_HITEXT, s);
+                IF NOT istitle THEN high_light(y, width, hl_chars);
         END;
         CHR(DWH_LT_LINK): BEGIN
                 INC(aptr);
                 idx := @abody[aptr];
-                nidx := idx^;
+                nid := idx^;
                 INC(aptr, 2);
                 Move(abody[aptr], s[0], ORD(abody[aptr]) + 1);
                 INC(aptr, ORD(abody[aptr]) + 1);
@@ -162,10 +170,8 @@ BEGIN
         END;
 END;
 
-PROCEDURE VIEW(VAR ctx : TDWH_VIEW_CTX; VAR f : BFILE; fofs : LONGINT);
+PROCEDURE VIEW(VAR ctx : TDWH_VIEW_CTX; VAR f : BFILE; hdrofs : LONGINT);
 VAR
-        ofsy    : WORD;
-        maxx    : WORD;
         len     : WORD;
         ofsfile : LONGINT;
         i, acount, size, lines, rlines : WORD;
@@ -176,10 +182,10 @@ VAR
         idx     : ^WORD;
         nidx    : WORD;
         key     : WORD;
-        needredraw : BOOLEAN;
-        x, y    : INTEGER;
-        prev_x, prev_y : INTEGER;
-        prev_ofsy : WORD;
+        x, y, ofsy                 : WORD;
+        prev_x, prev_y, prev_ofsy  : WORD;
+        visible_start, visible_len : WORD;
+        prev_id                    : WORD;
         width, height : INTEGER;
         c       : BYTE;
         stop    : BOOLEAN;
@@ -190,7 +196,12 @@ BEGIN
         height := scr.getheight - 1;
         width := scr.getwidth;
         stop := FALSE;
-        acount := dwh_GetArtCount(f, fofs);
+        acount := dwh_GetArtCount(f, hdrofs);
+
+        scr.cls(CLR_TEXT);
+        scr.hprint(0, height, $70, ' ', width);
+        scr.printhl(0, height, $70, $74, HELP_STR);
+
         s := '';
         FOR i := $B3 TO $DA DO s := s + CHR(i);
         s := '`^#@*_.,?+*/\-()!:;"=<>(){}[]~|' + s + #$27;
@@ -200,34 +211,56 @@ BEGIN
 
         GetMem(abody, 65535);
         WHILE (NOT stop) AND (ctx.id < acount) DO BEGIN
-                Seek(f, dwh_GetArtOfs(f, fofs, ctx.id));
+                Seek(f, dwh_GetArtOfs(f, hdrofs, ctx.id));
                 dwh_read(f, t, SizeOf(BYTE));
                 dwh_read(f, size, SizeOf(WORD));
                 dwh_read(f, lines, SizeOf(WORD));
                 dwh_read(f, abody^, size);
                 rlines := lines;
                 ofsy := 0; x := 1; y := 2;
-                prev_x := -100;
-                prev_y := -100;
-                prev_ofsy := 65535;
-                needredraw := TRUE;
+                prev_x := 65000;
+                prev_y := 65000;
+                prev_ofsy := 65000;
+                prev_id := 65000;
                 WHILE TRUE DO BEGIN
                         IF (prev_x <> x) OR (prev_y <> y) OR (prev_ofsy <> ofsy) THEN BEGIN
-                                scr.locate(x, y);
-                                prev_x := x;
-                                prev_y := y;
-                                scr.cls(CLR_TEXT);
-                                i := 0;
-                                aptr := LocateLine(abody, ofsy);
-                                WHILE (ofsy + i < lines) AND (i < height) DO BEGIN
-                                        PrintLine(i, width, abody, ctx.id, aptr, nidx, (ofsy + i) = 0, i = y);
-                                        INC(i);
+                                visible_start := 0;
+                                visible_len := height;
+                                IF (prev_ofsy = ofsy) AND ((prev_y + 1 = y) OR (prev_y - 1 = y)) THEN BEGIN
+                                        visible_start := Min(prev_y, y);
+                                        visible_len := 2;
+                                END ELSE IF (prev_ofsy = ofsy) AND (prev_y = y) THEN BEGIN
+                                        visible_len := 0;
+                                END ELSE IF (prev_ofsy + 1 = ofsy) THEN BEGIN
+                                        scroll_up(0, 0, width, height - 1, 1);
+                                        visible_start := height - 2;
+                                        visible_len := 2;
+                                END ELSE IF (prev_ofsy - 1 = ofsy) THEN BEGIN
+                                        scroll_down(0, 0, width, height - 1, 1);
+                                        visible_start := 0;
+                                        visible_len := 2;
                                 END;
-                                high_light(hlchars);
-                                scr.hprint(0, height, $70, ' ', width);
-                                scr.printhl(0, height, $70, $74, HELP_STR);
+                                IF visible_len <> 0 THEN BEGIN
+                                        INC(visible_len, visible_start);
+                                        i := visible_start;
+                                        aptr := LocateLine(abody, ofsy + visible_start);
+                                        WHILE (i < visible_len) AND (i < height) DO BEGIN
+                                                scr.hprint(0, i, CLR_TEXT, ' ', width);
+                                                IF ofsy + i < lines THEN BEGIN
+                                                        PrintLine(i, width, abody, ctx.id, aptr, nidx
+                                                        , (ofsy OR i) = 0, i = y, hlchars);
+                                                END;
+                                                INC(i);
+                                        END;
+                                END;
+                                IF (prev_x <> x) OR (prev_y <> y) THEN BEGIN
+                                        scr.locate(x, y);
+                                END;
                                 scr.show;
                                 prev_ofsy := ofsy;
+                                prev_id := ctx.id;
+                                prev_x := x;
+                                prev_y := y;
                         END;
                         key := kbd_getkey;
                         CASE hi(key) OF

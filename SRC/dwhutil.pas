@@ -197,60 +197,104 @@ VAR     r     : BOOLEAN;
         tname : STRING;
         mpath : STRING;
         epath : STRING;
-        i, e, l : INTEGER;
+        i, e  : INTEGER;
+        lang  : STRING;
+        help  : STRING;
+        bname : STRING;
+        bname_exe : STRING;
+        bname_hlp : STRING;
+        lname_hlp : STRING;
 BEGIN
-        r := check_file(fname);
+        lang := change_ext(basename(GetEnv('LANG')), '');
+        help := GetEnv('HELPPATH');
+        epath := GetEnv('PATH');
+
         tname := fname;
         mpath := getpathname(ParamStr(0));
+        bname :=basename(fname);
+        bname_hlp := change_ext(bname, '.HLP');
+        bname_exe := change_ext(bname, '.EXE');
+        lname_hlp := change_ext(bname, '') + '_'+lang + '.HLP';
+
+        IF help[ORD(help[0])] <> '\' THEN help := help + '\';
+
+        { direct name }
+        r := check_file(fname);
+
+        { check cur dir}
         IF NOT r THEN BEGIN
-                tname := change_ext(tname, '.HLP');
+                tname := lname_hlp;
                 r := check_file(tname);
                 IF r THEN fname := tname;
         END;
         IF NOT r THEN BEGIN
-                tname := change_ext(tname, '.EXE');
+                tname := bname_hlp;
                 r := check_file(tname);
                 IF r THEN fname := tname;
         END;
         IF NOT r THEN BEGIN
-                tname := mpath + basename(tname);
-                IF NOT r THEN BEGIN
-                        tname := change_ext(tname, '.HLP');
-                        r := check_file(tname);
-                        IF r THEN fname := tname;
-                END;
-                IF NOT r THEN BEGIN
-                        tname := change_ext(tname, '.EXE');
-                        r := check_file(tname);
-                        IF r THEN fname := tname;
-                END;
+                tname := bname_exe;
+                r := check_file(tname);
+                IF r THEN fname := tname;
+        END;
+
+        { check .exe dir}
+        IF NOT r THEN BEGIN
+                tname := mpath + lname_hlp;
+                r := check_file(tname);
+                IF r THEN fname := tname;
         END;
         IF NOT r THEN BEGIN
-                epath := GetEnv('PATH');
+                tname := mpath + bname_hlp;
+                r := check_file(tname);
+                IF r THEN fname := tname;
+        END;
+        IF NOT r THEN BEGIN
+                tname := mpath + bname_exe;
+                r := check_file(tname);
+                IF r THEN fname := tname;
+        END;
+
+        { check HELPPATH}
+        IF NOT r THEN BEGIN
+                tname := help + lname_hlp;
+                r := check_file(tname);
+                IF r THEN fname := tname;
+        END;
+        IF NOT r THEN BEGIN
+                tname := help + bname_hlp;
+                r := check_file(tname);
+                IF r THEN fname := tname;
+        END;
+
+        { check PATH}
+        IF NOT r THEN BEGIN
                 i := 0;
-                l := ORD(epath[0]);
                 WHILE (NOT r) AND (Length(epath) <> 0) DO BEGIN
                         e := Pos(';', epath);
-                        IF e > 0 THEN BEGIN
+                        IF e >= 0 THEN BEGIN
                                 mpath := Copy(epath, 1, e - 1);
                                 epath := Copy(epath, e + 1, Length(epath));
                         END ELSE BEGIN
                                 mpath := epath;
                                 epath := '';
                         END;
-                        IF Length(mpath) > 0 THEN BEGIN
-                                IF mpath[ORD(mpath[0])+1] <> '\' THEN mpath := mpath + '\';
-                                tname := mpath + basename(tname);
-                                IF NOT r THEN BEGIN
-                                        tname := change_ext(tname, '.HLP');
-                                        r := check_file(tname);
-                                        IF r THEN fname := tname;
-                                END;
-                                IF NOT r THEN BEGIN
-                                        tname := change_ext(tname, '.EXE');
-                                        r := check_file(tname);
-                                        IF r THEN fname := tname;
-                                END;
+                        IF Length(mpath) = 0 THEN BREAK;
+                        IF mpath[ORD(mpath[0])] <> '\' THEN mpath := mpath + '\';
+                        IF NOT r THEN BEGIN
+                                tname := mpath + lname_hlp;
+                                r := check_file(tname);
+                                IF r THEN fname := tname;
+                        END;
+                        IF NOT r THEN BEGIN
+                                tname := mpath + bname_hlp;
+                                r := check_file(tname);
+                                IF r THEN fname := tname;
+                        END;
+                        IF NOT r THEN BEGIN
+                                tname := mpath + bname_exe;
+                                r := check_file(tname);
+                                IF r THEN fname := tname;
                         END;
                 END;
         END;

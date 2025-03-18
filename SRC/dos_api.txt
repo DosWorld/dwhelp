@@ -27,24 +27,32 @@ INT 21, AX=713B set current directory
 INT 21, AX=7141 delete file
 INT 21, AX=7143 get/set file attributes
 INT 21, AX=7147 get current directory
-INT 21, AX=714E find first file
+!link INT21714E INT 21, AX=714E FindFirst - Find first matching file
 INT 21, AX=714F find next file
 INT 21, AX=7156 move (rename) file
 INT 21, AX=7160 truename
 !link INT21716C INT 21 AX=716C Open or create file
 INT 21, AX=71A0 get volume information
-INT 21, AX=71A1 terminate FindFirst/FindNext
+!link INT2171A1 INT 21, AX=71A1 FindClose - Terminate directory search
 INT 21, AX=71A6 get file information
 INT 21, AX=71A7 time conversion
 INT 21, AX=71A8 generate short filename
 INT 21, AX=71A9 server create/open file
 INT 21, AX=71AA create/terminate SUBST
 
+~Basic DOS find file~ (IL, Copyright 2000 Ralf Brown):
+
+!link INT211A INT 21, AH=1A, Set DTA (Disk Transfer Area Address)
+!link INT212F INT 21, AH=2F, Get DTA
+!link INT214E INT 21, AH=4E, Find first matching file
+!link INT214F INT 21, AH=4F, Find next matching file
+
 ---
 !link wincb_index Windows Clipboard API
 !link xms_index XMS - Extended Memory Specification
 ---
-!link tp_error_codes Turbo/Free Pascal Error codes
+!link tp_ioresult_codes Turbo/Free Pascal IOResult codes
+!link tp_doserror_codes Turbo/Free Pascal DosError codes
 
 !doc wincb_index
 Windows Clipboard API for DOS
@@ -1307,8 +1315,8 @@ If the call succeeded, the carry flag is cleared and register AH is 0.
 If an error occured (for example, CPU doesn't support PSE), the carry
 flag is set and AH is != 0.
 
-!doc tp_error_codes
-Turbo/Free Pascal Error codes
+!doc tp_ioresult_codes
+Turbo/Free Pascal IOResult Error codes
 
           1 Invalid function number
           2 File not found
@@ -1356,6 +1364,55 @@ Turbo/Free Pascal Error codes
         214 Collection overflow error
         215 Arithmetic overflow error
         216 General Protection fault
+!doc tp_doserror_codes
+Turbo/Free Pascal DosError codes
+
+          2 File not found
+          3 Path not found
+          5 Access denied
+          6 Invalid handle
+          8 Not enough memory
+         10 Invalid environment
+         11 Invalid format
+         18 No more files
+
+!doc INT211A
+SET DISK TRANSFER AREA ADDRESS
+
+        AH = 1Ah
+        DS:DX -> Disk Transfer Area (DTA)
+
+~NOTES~: the DTA is set to PSP:0080h when a program is started
+
+!link INT212F INT 21, AH=2F, Get Disk Transfer Area Address
+
+PROCEDURE SetDTA(dta : POINTER);ASSEMBLER;
+ASM
+        MOV  AH, $1A
+        PUSH DS
+        LDS  DX, dta
+        INT  $21
+        POP  DS
+END;
+
+!doc INT212F
+GET DISK TRANSFER AREA ADDRESS
+
+        AH = 2Fh
+
+~Return~: ES:BX -> current DTA
+
+!link INT211A INT 21, AH=1A, Set Disk Transfer Area Address
+
+FUNCTION GetDTA : POINTER;ASSEMBLER;
+ASM
+        PUSH ES
+        MOV  AH, $2F
+        INT  $21
+        MOV  AX, BX
+        MOV  DX, ES
+        POP  ES
+END;
 
 !doc INT213D
 Open existing file
@@ -1405,6 +1462,10 @@ modes are only effective on local drives if SHARE is loaded.
 ³        ³ if set, file is private to current process and will not be      ³
 ³        ³ inherited by child processes                                    ³
 ÀÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+!link INT213C INT 21, AH=3C Create file
+!link INT21716C INT 21 AX=716C Open or create file
+
 !doc INT213C
 Create file
 
@@ -1422,6 +1483,10 @@ under the FlashTek X-32 DOS extender, the pointer is in DS:EDX DR DOS checks
 the system password or explicitly supplied password at the end of the
 filename against the reserved field in the directory entry before allowing
 access
+
+!link INT213D INT 21, AH=3D Open existing file
+!link INT21716C INT 21 AX=716C Open or create file
+
 !doc INT213F
 Read from file
 
@@ -1501,6 +1566,82 @@ the time and date stamps are set to the current time, and the directory
 entry is updated recent versions of DOS preserve AH because some versions
 of Multiplan had a bug which depended on AH being preserved
 
+!doc INT214E
+FIND FIRST MATCHING FILE
+
+        AH = 4Eh
+        AL = special flag for use by APPEND (refer to note below)
+        CX = file attribute mask (bits 0 and 5 ignored)
+        DS:DX -> ASCIZ file specification (may include path and wildcards)
+
+~Return~: CF clear if successful
+            Disk Transfer Area filled with FindFirst data block
+        CF set on error
+            AX = error code (02h,03h,12h)
+
+~NOTE~: For search attributes other than 08h, all files with at ~MOST~ the
+specified combination of hidden, system, and directory attributes
+will be returned.  Under DOS 2.x, searching for attribute 08h
+(volume label) will also return normal files, while under DOS 3.0+
+only the volume label (if any) will be returned.
+
+This call also returns successfully if given the name of a character
+device without wildcards.
+
+~DOS 2.x~ returns attribute 00h, size 0, and the current date and time.
+~DOS 3.0+~ returns attribute 40h and the current date and time.
+
+~Format of FindFirst data block~:
+ÚÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Offset ³ Size     ³ Description              ³
+ÃÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  15h   ³ BYTE     ³ attribute of file found  ³
+³  16h   ³ WORD     ³ file time                ³
+³  18h   ³ WORD     ³ file date                ³
+³  1Ah   ³ DWORD    ³ file size                ³
+³  1Eh   ³ 13 BYTEs ³ ASCIZ filename+extension ³
+ÀÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+~Bitfields for file attributes~:
+ÚÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Bit(s) ³ Description  ³
+ÃÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³   5    ³ archive      ³
+³   4    ³ directory    ³
+³   3    ³ volume label ³
+³   2    ³ system       ³
+³   1    ³ hidden       ³
+³   0    ³ read-only    ³
+ÀÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+!link INT214F INT 21, AH=4F, Find next matching file
+
+!link INT211A INT 21, AH=1A, Set Disk Transfer Area Address
+!link INT212F INT 21, AH=2F, Get Disk Transfer Area Address
+
+!doc INT214F
+FIND NEXT MATCHING FILE
+
+        AH = 4Fh
+        Disk Transfer Area contains data block from previous FindFirst or
+          FindNext call
+
+~Return~: CF clear if successful
+            Disk Transfer Area updated
+        CF set on error
+            AX = error code (12h)
+
+~NOTE~: under Novell DOS 7, if the FindFirst call (AH=4Eh) had CX=0088h, then
+the next matching deleted file will be returned since the entire state of
+a FindFirst/FindNext sequence is contained in the data block in the DTA,
+other disk operations such as renaming, moving, deleting, or creating files
+can cause inaccurate directory searches, such as finding the same file twice
+
+!link INT214E INT 21, AH=4E, Find first matching file
+
+!link INT211A INT 21, AH=1A, Set Disk Transfer Area Address
+!link INT212F INT 21, AH=2F, Get Disk Transfer Area Address
+
 !doc INT21716C
 LFN Open or create file
 
@@ -1561,6 +1702,10 @@ LFN Open or create file
 ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
 ³  14   ³ commit file after every write operation                           ³
 ÀÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+!link INT213C INT 21, AH=3C Create file
+!link INT213D INT 21, AH=3D Open existing file
+
 !doc INT2148
 Allocate memory
 
@@ -1570,12 +1715,12 @@ Allocate memory
 ~Return~: CF clear if successful
             AX = segment of allocated block
         CF set on error
-            AX = error code (07h,08h) (see #01680 at AH=59h/BX=0000h)
+            AX = error code (07h,08h)
             BX = size of largest available block
 
 ~NOTE~: DOS 2.1-6.0 coalesces free blocks while scanning for a block to
 allocate .COM programs are initially allocated the largest available memory
-block, and should free some memory with AH=49h before attempting any
+block, and should free some memory with ~AH=49h~ before attempting any
 allocations
 
 !link INT2149 INT 21 49 Free memory
@@ -1592,10 +1737,10 @@ Free memory
             AX = error code (07h,09h)
 
 ~NOTE~: apparently never returns an error 07h, despite official docs;
-DOS 2.1+ code contains only an error 09h exit DOS 2.1-6.0 does not coalesce
+DOS 2.1+ code contains only an error 09h exit ~DOS 2.1-6.0~ does not coalesce
 adjacent free blocks when a block is freed, only when a block is allocated or
-resized the code for this function is identical in DOS 2.1-6.0 except for
-calls to start/end a critical section in DOS 3.0+
+resized the code for this function is identical in ~DOS 2.1-6.0~ except for
+calls to start/end a critical section in ~DOS 3.0+~
 
 !link INT2148 INT 21 48 Allocate memory
 !link INT214A INT 21 4A Resize memory block
@@ -1612,10 +1757,97 @@ Resize memory block
             AX = error code (07h,08h,09h)
             BX = maximum paragraphs available for specified memory block
 
-~NOTE~: under DOS 2.1-6.0, if there is insufficient memory to expand the block
-as much as requested, the block will be made as large as possible DOS 2.1-6.0
+~NOTE~: under ~DOS 2.1-6.0~, if there is insufficient memory to expand the block
+as much as requested, the block will be made as large as possible ~DOS 2.1-6.0~
 coalesces any free blocks immediately following the block to be resized
 
 !link INT2148 INT 21 48 Allocate memory
 !link INT2149 INT 21 49 Free memory
+
+!doc INT21714E
+FindFirst - Find first matching file
+
+        AX = 714Eh
+        CL = allowable-attributes mask
+              (bits 0 and 5 ignored)
+        CH = required-attributes mask
+        SI = date/time format
+        DS:DX -> ASCIZ filespec (both "*" and "*.*" match any filename)
+        ES:DI -> FindData record
+
+~Return~: CF clear if successful
+            AX = filefind handle (needed to continue search)
+            CX = Unicode conversion flags (see #01780)
+        CF set on error
+            AX = error code
+                7100h if function not supported
+
+~NOTE~: This function is only available when IFSMgr is running, not under bare
+~MS-DOS 7~. The application should close the filefind handle with ~AX=71A1h~
+as soon as it has completed its search for compatibility with ~DOS~ versions
+prior to v7.00, the carry flag should be set on call to ensure that it is set
+on exit
+
+~Bitfields for file attributes~:
+ÚÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Bit(s) ³ Description  ³
+ÃÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³   5    ³ archive      ³
+³   4    ³ directory    ³
+³   3    ³ volume label ³
+³   2    ³ system       ³
+³   1    ³ hidden       ³
+³   0    ³ read-only    ³
+ÀÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+~Values for Windows95 date/time format~:
+ÚÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ 00h ³ use 64-bit file time format                                      ³
+³ 01h ³ use MS-DOS date/time values in low double-word offile time QWORD ³
+³     ³ (date is high word, time is low word of double-word)             ³
+ÀÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+~Format of FindData record~:
+ÚÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³Offset ³ Size      ³ Description                                ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  00h  ³ DWORD     ³ file attributes                            ³
+³       ³           ³ bits 0-6 standard DOS attributes           ³
+³       ³           ³ bit 8: temporary file                      ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  04h  ³ QWORD     ³ file creation time                         ³
+³       ³           ³ (number of 100ns intervals since 1/1/1601) ³
+ÃÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³  0Ch  ³ QWORD     ³ last access time                           ³
+³  14h  ³ QWORD     ³ last modification time                     ³
+³  1Ch  ³ DWORD     ³ file size (high 32 bits)                   ³
+³  20h  ³ DWORD     ³ file size (low 32 bits)                    ³
+³  24h  ³ 8 BYTEs   ³ reserved                                   ³
+³  2Ch  ³ 260 BYTEs ³ ASCIZ full filename                        ³
+³ 130h  ³ 14 BYTEs  ³ ASCIZ short filename                       ³
+ÀÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+~NOTE~: under ~Windows95~, the ASCIZ short filename will be the empty string
+if the directory does not contain a long filename entry for the file;
+in that case, the application should use the full filename.
+
+!link INT2171A1 INT 21, AX=71A1 FindClose - Terminate directory search
+
+!doc INT2171A1
+FindClose - Terminate directory search
+
+        AX = 71A1h
+        BX = filefind handle (from ~AX=714Eh~)
+
+~Return~: CF clear if successful
+        CF set on error
+           AX = error code
+                7100h if function not supported
+
+~NOTE~: this function must be called after starting a search with ~AX=714Eh~,
+to indicate that the search handle returned by that function will no longer
+be used this function is only available when IFSMgr is running, not under
+bare ~MS-DOS 7~.
+
+!link INT21714E INT 21, AX=714E FindFirst - Find first matching file
 
