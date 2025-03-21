@@ -39,7 +39,7 @@ VAR
         aptr    : WORD;
         i, link : WORD;
         asize, alines, l : WORD;
-        atype  : BYTE;
+        atype  : WORD;
         c      : CHAR;
 BEGIN
         Assign(INF, src_name);
@@ -60,7 +60,7 @@ BEGIN
                 i := 0;
                 WHILE i < acount DO BEGIN
                         Seek(INF, dwh_GetArtOfs(INF, ofs, i));
-                        dwh_read(INF, atype, 1);
+                        dwh_read(INF, atype, SizeOf(atype));
                         dwh_read(INF, asize, SizeOf(WORD));
                         dwh_read(INF, alines, SizeOf(WORD));
                         dwh_read(INF, abody^, asize);

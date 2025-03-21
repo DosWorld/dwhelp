@@ -22,7 +22,8 @@ SOFTWARE. }
 {$M 16000, 64000, 650000}
 {$I+}
 PROGRAM DWHC;
-USES System2, str, DWH, DWHUTIL;
+
+USES System2, str, DWH, DWHUTIL, LZPMEM;
 
 TYPE
 PDWH_ART = ^TDWH_ART;
@@ -151,6 +152,10 @@ BEGIN
                 next_line(INF, s, stop);
                 INC(i);
         END;
+        IF elines = 0 THEN BEGIN
+                AddText(abody, aptr, '');
+                INC(rlines);
+        END;
         cur^.lines := rlines;
 END;
 
@@ -164,7 +169,7 @@ VAR
         acount : WORD;
         abody  : PCHAR;
         aptr   : WORD;
-        b      : BYTE;
+        b      : WORD;
         link   : STRING;
         i      : INTEGER;
         len    : LONGINT;
@@ -248,7 +253,7 @@ BEGIN
                                 b := DWH_ET_ART;
                                 cur^.ofs := FilePos(OUTF);
                                 cur^.size := aptr;
-                                dwh_write(OUTF, b, SizeOf(BYTE));
+                                dwh_write(OUTF, b, SizeOf(b));
                                 dwh_write(OUTF, cur^.size, SizeOf(WORD));
                                 dwh_write(OUTF, cur^.lines, SizeOf(WORD));
                                 dwh_write(OUTF, abody^, cur^.size);

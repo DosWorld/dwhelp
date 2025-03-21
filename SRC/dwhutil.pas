@@ -176,7 +176,7 @@ BEGIN
         dwh_GetHdrOfs := r;
 END;
 
-FUNCTION check_file(VAR fname : STRING) : BOOLEAN;
+FUNCTION check_file(fname : STRING; VAR outfname : STRING) : BOOLEAN;
 VAR
         f : DWH_FILE;
         r : BOOLEAN;
@@ -189,7 +189,13 @@ BEGIN
                 IF IsOpen(f) THEN r := dwh_GetHdrOfs(f, l) <> DWH_HEADER_NOT_FOUND;
                 Close(f);
         END;
+        IF r THEN outfname := fname;
         check_file := r;
+END;
+
+PROCEDURE normPath(VAR name : STRING);
+BEGIN
+        IF (name[0] <> #0) AND (name[ORD(name[0])] <> '\') THEN name := name + '\';
 END;
 
 FUNCTION dwh_lookup(VAR fname : STRING) : BOOLEAN;
@@ -214,58 +220,29 @@ BEGIN
         bname :=basename(fname);
         bname_hlp := change_ext(bname, '.HLP');
         bname_exe := change_ext(bname, '.EXE');
-        lname_hlp := change_ext(bname, '') + '_'+lang + '.HLP';
-
-        IF help[ORD(help[0])] <> '\' THEN help := help + '\';
+        lname_hlp := '';
+        IF lang[0] <> #0 THEN lname_hlp := change_ext(bname, '') + '_'+lang + '.HLP';
+        r := FALSE;
 
         { direct name }
-        r := check_file(fname);
-
-        { check cur dir}
-        IF NOT r THEN BEGIN
-                tname := lname_hlp;
-                r := check_file(tname);
-                IF r THEN fname := tname;
-        END;
-        IF NOT r THEN BEGIN
-                tname := bname_hlp;
-                r := check_file(tname);
-                IF r THEN fname := tname;
-        END;
-        IF NOT r THEN BEGIN
-                tname := bname_exe;
-                r := check_file(tname);
-                IF r THEN fname := tname;
-        END;
-
-        { check .exe dir}
-        IF NOT r THEN BEGIN
-                tname := mpath + lname_hlp;
-                r := check_file(tname);
-                IF r THEN fname := tname;
-        END;
-        IF NOT r THEN BEGIN
-                tname := mpath + bname_hlp;
-                r := check_file(tname);
-                IF r THEN fname := tname;
-        END;
-        IF NOT r THEN BEGIN
-                tname := mpath + bname_exe;
-                r := check_file(tname);
-                IF r THEN fname := tname;
-        END;
+        IF NOT r THEN r := check_file(fname, fname);
 
         { check HELPPATH}
-        IF NOT r THEN BEGIN
-                tname := help + lname_hlp;
-                r := check_file(tname);
-                IF r THEN fname := tname;
+        IF help[0] <> #0 THEN BEGIN
+                normPath(help);
+                IF (NOT r) AND (ORD(lname_hlp[0])<>0) THEN r := check_file(help + lname_hlp, fname);
+                IF NOT r THEN r := check_file(help + bname_hlp, fname);
         END;
-        IF NOT r THEN BEGIN
-                tname := help + bname_hlp;
-                r := check_file(tname);
-                IF r THEN fname := tname;
-        END;
+
+        { check cur dir}
+        IF (NOT r) AND (lname_hlp[0] <> #0) THEN r := check_file(help + lname_hlp, fname);
+        IF NOT r THEN r := check_file(bname_hlp, fname);
+        IF NOT r THEN r := check_file(bname_exe, fname);
+
+        { check .exe dir}
+        IF (NOT r) AND (lname_hlp[0] <> #0) THEN r := check_file(mpath + lname_hlp, fname);
+        IF NOT r THEN r := check_file(mpath + bname_hlp, fname);
+        IF NOT r THEN r := check_file(mpath + bname_exe, fname);
 
         { check PATH}
         IF NOT r THEN BEGIN
@@ -280,22 +257,10 @@ BEGIN
                                 epath := '';
                         END;
                         IF Length(mpath) = 0 THEN BREAK;
-                        IF mpath[ORD(mpath[0])] <> '\' THEN mpath := mpath + '\';
-                        IF NOT r THEN BEGIN
-                                tname := mpath + lname_hlp;
-                                r := check_file(tname);
-                                IF r THEN fname := tname;
-                        END;
-                        IF NOT r THEN BEGIN
-                                tname := mpath + bname_hlp;
-                                r := check_file(tname);
-                                IF r THEN fname := tname;
-                        END;
-                        IF NOT r THEN BEGIN
-                                tname := mpath + bname_exe;
-                                r := check_file(tname);
-                                IF r THEN fname := tname;
-                        END;
+                        normPath(mpath);
+                        IF (NOT r) AND (lname_hlp[0] <> #0) THEN r := check_file(mpath + lname_hlp, fname);
+                        IF NOT r THEN r := check_file(mpath + bname_hlp, fname);
+                        IF NOT r THEN r := check_file(mpath + bname_exe, fname);
                 END;
         END;
         dwh_lookup := r;

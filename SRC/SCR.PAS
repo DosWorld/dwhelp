@@ -72,6 +72,7 @@ procedure reset_palette;
 procedure gray_palette;
 
 procedure WaitRetrace;
+procedure delay(ms : word);
 
 implementation
 

@@ -255,25 +255,44 @@ RLE decompression for strings in DWHELP
 
 ~FUNCTION dwh_rle_unpack(VAR s : STRING) : STRING;~
 VAR
-        r      : STRING;
-        i, len : INTEGER;
-        c      : CHAR;
+        r     : STRING;
+        i     : INTEGER;
+        count : INTEGER;
+        c     : CHAR;
 BEGIN
-        r[0] := '';
+        r := '';
         i := 1;
-        len := Length(s);
-        WHILE i <= len DO BEGIN
+        WHILE i <= Length(s) DO BEGIN
                 c := s[i];
                 IF ORD(c) IN [3..15] THEN BEGIN
-                        FillChar(r[ORD(r[0]) + 1], ORD(c), s[i + 1]);
-                        INC(r[0], ORD(c));
+                        count := ORD(c);
+                        FillChar(r[ORD(r[0]) + 1], count, s[i + 1]);
+                        INC(r[0], count);
                         INC(i, 2);
                 END ELSE BEGIN
-                        INC(r[0]);
-                        r[ORD(r[0])] := c;
+                        r := r + c;
                         INC(i);
                 END;
         END;
         dwh_rle_unpack := r;
 END;
 
+~void dwh_rle_unpack(char *src, char *dst)~
+{
+        char c;
+        while ((c = *src) != 0) {
+                src++;
+                if ((c >= 3) && (c <= 15)) {
+                        while (c != 0) {
+                                *dst = *src;
+                                dst++;
+                                c--;
+                        }
+                        src++;
+                } else {
+                        *dst = c;
+                        dst++;
+                }
+        }
+        *dst = 0;
+}
