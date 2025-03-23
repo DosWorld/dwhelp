@@ -146,6 +146,58 @@ Users guide
 !doc dwhelp_progs_guide
 Programmers guide
 
+
+  At first: each structure ~MUST BE~ word-aligned (16-bit). Article lines
+is not aligned - just aligned full article.
+
+  HLP file format:
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ ~Header~                                                       ³
+ÃÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ Magic   ³ WORD  ³ $44, $48 - HLP file signatures             ³
+³ ACount  ³ WORD  ³ Count of articles in this HLP file         ³
+ÃÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ ~Article start index table~                                    ³
+ÃÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ offs0   ³ DWORD ³ Offset (from header start) of article body ³
+³ ...     ³       ³                                            ³
+³ offsN   ³ DWORD ³                                            ³
+ÃÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ ~Articles content~                                             ³
+ÃÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ atype   ³ WORD  ³ Article type (04 = Text)                   ³
+³ size    ³ WORD  ³ Article content size in bytes              ³
+³ lines   ³ WORD  ³ Count of lines                             ³
+³ content ³ ???   ³ See below                                  ³
+ÃÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ ~This help file size~                                          ³
+ÃÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ size    ³ DWORD ³ File size (including this 4 bytes)         ³
+ÀÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  ~Article content format~. Set of records, repeated ~lines~ times.
+
+Simple text
+ÚÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ BYTE ³ DWH_LT_TEXT ($01)                   ³
+³ BYTE ³ str length                          ³
+³ ???? ³ str content                         ³
+ÀÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+Horizontal line
+ÚÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ BYTE ³ DWH_LT_LINE ($02)                   ³
+ÀÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+Link
+ÚÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ BYTE ³ DWH_LT_LINK ($03)                   ³
+³ WORD ³ target article id                   ³
+³ BYTE ³ str length                          ³
+³ ???? ³ str content (visible text for link) ³
+ÀÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Each string is compressed with RLE encoding.
+
 !link dwh_rle_unpack RLE decompression for strings
 
 !doc dwhelp_writers_guide
@@ -254,8 +306,7 @@ RLE decompression for strings in DWHELP
   Here is reference implementation:
 
 ~FUNCTION dwh_rle_unpack(VAR s : STRING) : STRING;~
-VAR
-        r     : STRING;
+VAR     r     : STRING;
         i     : INTEGER;
         count : INTEGER;
         c     : CHAR;
@@ -280,10 +331,10 @@ END;
 ~void dwh_rle_unpack(char *src, char *dst)~
 {
         char c;
-        while ((c = *src) != 0) {
+        while (c = *src) {
                 src++;
                 if ((c >= 3) && (c <= 15)) {
-                        while (c != 0) {
+                        while (c) {
                                 *dst = *src;
                                 dst++;
                                 c--;
