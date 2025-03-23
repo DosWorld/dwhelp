@@ -54,7 +54,7 @@ FUNCTION dwh_view(VAR ctx : TDWH_VIEW_CTX) : INTEGER;
 
 IMPLEMENTATION
 
-USES System2, DWH, DWHUTIL, scr, KMInput, str, WinCB;
+USES System2, DWH, DWHUTIL, scr, KMInput, scrui, Event, str, WinCB;
 
 {$IFNDEF MS_COLOR_SCHEME}
 {$IFNDEF BORLAND_COLOR_SCHEME}
@@ -81,7 +81,7 @@ CLR_SEL_TEXT = $70;
 CLR_TEXT     = $30;
 CLR_TEXT2    = $38;
 CLR_LINK     = $3E;
-CLR_LINE     = $30;
+CLR_LINE     = $38;
 CLR_HITEXT   = $3F;
 CLR_HILINK   = $70;
 CLR_TITLE    = $3E;
@@ -206,7 +206,7 @@ BEGIN
                 IF IsInSelBounds(y, ctx) THEN BEGIN
                         c := CLR_SEL_TEXT;
                 END ELSE c := CLR_LINE;
-                scr.hprint(1, y, c, LINE_CHAR, width - 1);
+                scr.hprint(1, y, c, LINE_CHAR, width - 2);
         END;
         END;
 END;
@@ -261,6 +261,27 @@ BEGIN
         FreeMem(cb, 65000);
 END;
 
+PROCEDURE Load_help(VAR ctx : TDWH_VIEW_CTX; VAR f : BFILE; VAR hdrofs : LONGINT);
+VAR
+        width, height : INTEGER;
+        event : TEvent;
+BEGIN
+        height := scr.getheight - 1;
+        width := scr.getwidth;
+
+        while true do begin
+                scr.show;
+{                scrui.editstr(event, length(msg) + 1, 0, ctx.current^.config^.color.top, newname, 32, 255);}
+                if event.etype = KEYBOARD then begin
+                        if event.scancode = SCAN_ESC then begin break; end;
+                        if event.scancode = SCAN_ENTER then begin break; end;
+                end;
+        end;
+
+        scr.hprint(0, height, $70, ' ', width);
+        scr.printhl(0, height, $70, $74, HELP_STR);
+END;
+
 PROCEDURE VIEW(VAR ctx : TDWH_VIEW_CTX; VAR f : BFILE; hdrofs : LONGINT);
 VAR
         len     : WORD;
@@ -286,12 +307,12 @@ BEGIN
         height := scr.getheight - 1;
         width := scr.getwidth;
         stop := FALSE;
-        acount := dwh_GetArtCount(f, hdrofs);
 
         scr.cls(CLR_TEXT);
         scr.hprint(0, height, $70, ' ', width);
         scr.printhl(0, height, $70, $74, HELP_STR);
 
+        acount := dwh_GetArtCount(f, hdrofs);
         s := '';
         FOR i := $B3 TO $DA DO s := s + CHR(i);
         s := '`^#@*_.,?+*/\-()!:;"=<>(){}[]~|' + s + #$27;
@@ -301,6 +322,7 @@ BEGIN
 
         GetMem(abody, 65535);
         WHILE (NOT stop) AND (ctx.id < acount) DO BEGIN
+                acount := dwh_GetArtCount(f, hdrofs);
                 Seek(f, dwh_GetArtOfs(f, hdrofs, ctx.id));
                 dwh_read(f, t, SizeOf(WORD));
                 dwh_read(f, size, SizeOf(WORD));
@@ -414,6 +436,7 @@ BEGIN
                                         IF ctx.cur.ofsy + ctx.cur.y >= lines THEN ctx.cur.y := lines - ctx.cur.ofsy - 1;
                                 END ELSE ctx.cur.y := lines - ctx.cur.ofsy - 1;
                         END;
+                        SCAN_F3: Load_help(ctx, f, hdrofs);
                         SCAN_ENTER: BEGIN
                                 aptr := LocateLine(abody, ctx.cur.ofsy + ctx.cur.y);
                                 IF abody[aptr] = CHR(DWH_LT_LINK) THEN BEGIN
