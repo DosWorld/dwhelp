@@ -12,11 +12,11 @@ dwhdc.exe: dwhdc.pas dwh.tpu dwhutil.tpu
         tpc dwhdc.pas
         upx -9 --8086 dwhdc.exe
 
-dwhelp.exe: dwhelp.pas dwhelp.hlp dwh.tpu dwhview.tpu dwhadd.exe dwhutil.tpu
+dwhelp.exe: dwhelp.pas dwhelp.hlp scrui.tpu dwh.tpu dwhview.tpu dwhadd.exe dwhutil.tpu
         tpc dwhelp.pas
         upx -9 --8086 dwhelp.exe
         dwhadd dwhelp.exe dwhelp.hlp
-	del dwhelp.hlp
+        del dwhelp.hlp
 
 dwhadd.exe: dwhadd.pas dwh.tpu dwhutil.tpu
         tpc dwhadd.pas
@@ -35,6 +35,12 @@ dwhutil.tpu: dwhutil.pas
 scr.tpu: scr.pas
         tpc scr.pas
 
+event.tpu: event.pas
+        tpc event.pas
+
+scrui.tpu: scrui.pas scr.tpu event.tpu
+        tpc scrui.pas
+
 dwhview.tpu: scr.tpu dwhutil.tpu dwhview.pas
         tpc dwhview.pas
 
@@ -47,7 +53,8 @@ amb.hlp: dwhc.exe amb.txt
 dwhelp.hlp: dwhc.exe dwhelp.txt
         dwhc dwhelp.txt
 
-test: xms.hlp
+test: dwhelp.exe dos_api.hlp
+	dwhelp dos_api
 
 clean:
         del *.bak

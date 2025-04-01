@@ -65,7 +65,7 @@ USES System2, DWH, DWHUTIL, scr, KMInput, scrui, Event, str, WinCB;
 
 CONST
 HELP_STR : STRING
-= ' ~'#$11+#$D9+'~ Enter topic  ~'+#$18+#$19+'~ Move  ~BS~ Back  ~F3~ Load  ~F5~ Index  ~Ctrl~+~C~ Copy';
+= ' ~F3~ Load  ~F5~ Index  ~'#$11+#$D9+'~ Enter topic  ~'+#$18+#$19+'~ Move  ~BS~ Back  ~Ctrl~+~C~ Copy';
 
 {$IFDEF MS_COLOR_SCHEME}
 CLR_TEXT     = $17;
@@ -154,12 +154,11 @@ BEGIN
 END;
 
 PROCEDURE PrintLine(y, width : INTEGER;
-abody : PCHAR;
-VAR aptr, nid : WORD;
-istitle, isselrow : BOOLEAN;
-VAR hl_chars : STRING;
-VAR ctx : TDWH_VIEW_CTX);
-
+        abody : PCHAR;
+        VAR aptr, nid : WORD;
+        istitle, isselrow : BOOLEAN;
+        VAR hl_chars : STRING;
+        VAR ctx : TDWH_VIEW_CTX);
 VAR
         s     : STRING;
         c, ch : BYTE;
@@ -261,25 +260,47 @@ BEGIN
         FreeMem(cb, 65000);
 END;
 
-PROCEDURE Load_help(VAR ctx : TDWH_VIEW_CTX; VAR f : BFILE; VAR hdrofs : LONGINT);
+FUNCTION Load_help(VAR ctx : TDWH_VIEW_CTX; VAR f : BFILE; VAR hdrofs : LONGINT) : BOOLEAN;
 VAR
         width, height : INTEGER;
         event : TEvent;
+        fname : STRING;
+        r     : BOOLEAN;
 BEGIN
+        r := FALSE;
         height := scr.getheight - 1;
         width := scr.getwidth;
-
-        while true do begin
+        fname := ctx.fname;
+        scr.hprint(0, height, $70, ' ', width);
+        scr.print(0, height, $70, 'Load:');
+        WHILE TRUE DO BEGIN
                 scr.show;
-{                scrui.editstr(event, length(msg) + 1, 0, ctx.current^.config^.color.top, newname, 32, 255);}
+                scrui.editstr(event, 6, height, $70, fname, 32, 255);
                 if event.etype = KEYBOARD then begin
                         if event.scancode = SCAN_ESC then begin break; end;
-                        if event.scancode = SCAN_ENTER then begin break; end;
-                end;
-        end;
+                        if event.scancode = SCAN_ENTER then begin
+                                IF dwh_lookup(fname) THEN BEGIN
+                                        Close(f);
+                                        Assign(f, fname);
+                                        Reset(f);
+                                        hdrofs := dwh_GetHdrOfs(f, hdrofs);
+                                        ctx.fname := fname;
+                                        ctx.prev.x := 65000;
+                                        ctx.prev.y := 65000;
+                                        ctx.prev.ofsy := 65000;
+                                        ctx.prev.id := 65000;
+                                        ctx.id := 0;
+                                        r := TRUE;
+                                END;
+                                BREAK;
+                        END;
+                END;
+        END;
 
         scr.hprint(0, height, $70, ' ', width);
         scr.printhl(0, height, $70, $74, HELP_STR);
+        scr.show;
+        Load_help := r;
 END;
 
 PROCEDURE VIEW(VAR ctx : TDWH_VIEW_CTX; VAR f : BFILE; hdrofs : LONGINT);
@@ -436,7 +457,10 @@ BEGIN
                                         IF ctx.cur.ofsy + ctx.cur.y >= lines THEN ctx.cur.y := lines - ctx.cur.ofsy - 1;
                                 END ELSE ctx.cur.y := lines - ctx.cur.ofsy - 1;
                         END;
-                        SCAN_F3: Load_help(ctx, f, hdrofs);
+                        SCAN_F3: IF Load_help(ctx, f, hdrofs) THEN BEGIN
+                                acount := dwh_GetArtCount(f, hdrofs);
+                                BREAK;
+                        END;
                         SCAN_ENTER: BEGIN
                                 aptr := LocateLine(abody, ctx.cur.ofsy + ctx.cur.y);
                                 IF abody[aptr] = CHR(DWH_LT_LINK) THEN BEGIN
