@@ -27,7 +27,7 @@ What dwhelp search?
 *. file name with %LANG% (dos_api_CS.hlp)
 *. .EXE-file, which can contains help (dos_api.exe)
 
-For more info run DWHELP.EXE DWHELP
+For more info run `DWHELP.EXE DWHELP`
 
 ## License
 
