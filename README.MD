@@ -29,5 +29,5 @@ What dwhelp search?
 
 For more info run DWHELP.EXE DWHELP
 
-== License ==
+== License
 MIT (see License.txt)
