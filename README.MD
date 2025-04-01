@@ -17,15 +17,17 @@ in FreeDOS-way, or in a minimalistic old-times way - does not matter.
 Another primary feature: possibility select part of help and copy to clipboard.
 
 Where dwhelp search .HLP-files?
-*. current directory
-*. directory with dwhelp.exe
-*. into directory %HELPPATH%
-*. into %PATH%
+
+* current directory
+* directory with dwhelp.exe
+* into directory %HELPPATH%
+* into %PATH%
 
 What dwhelp search?
-*. file name, entered by you (dos_api => dos_api.hlp)
-*. file name with %LANG% (dos_api_CS.hlp)
-*. .EXE-file, which can contains help (dos_api.exe)
+
+* file name, entered by you (dos_api => dos_api.hlp)
+* file name with %LANG% (dos_api_CS.hlp)
+* .EXE-file, which can contains help (dos_api.exe)
 
 For more info run `DWHELP.EXE DWHELP`
 
