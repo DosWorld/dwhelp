@@ -1,27 +1,25 @@
 !doc dwhelp_index
-DWHELP
-
-  Welcome!
+Welcome to DWHELP!
 
 !link dwhelp_users_guide Users guide
 End-user guide
 
 !link dwhelp_writers_guide Writers guide
-Here is description for input (text) file markup language for help compiler.
+Here is description for input (text) file markup language for help-compiler.
 
 !link dwhelp_progs_guide Programmers guide
-Description for binary .HLP file format.
+Description for binary .HLP file format etc
 
-!link dwhelp_buid How to build DWHELP
+!link dwhelp_buid How to build this project from sources
 
 !link dwh_license License
-.HLP file format and produced .HLP files you can use 100% free without any
-additional payments.
+
+  A few words about hot-keys: use arrow keys to move cursor, Enter - to select
+topic. If you need copy part of text to windows clipboard - select text with
+Shift + arrow keys and press Ctrl+C.
 
 ---
-
         Latest version of this project can be free downloaded from
-
                   ~https://github.com/DosWorld/dwhelp~
 
 !doc dwhelp_tools
@@ -51,6 +49,8 @@ Usage:
   ~hlpfile~ - your help file name
 
 In case, if exefile alredy contains help, it will be removed and added new.
+
+I am recomend use DWHADD ~AFTER compressor~ (like UPX, lzexe, diet etc).
 
 !link dwhelp_tools Command line tools
 !link dwh_license License
@@ -148,18 +148,19 @@ acts as unix-man.
 
   To meet this goals, dwhelp purpose:
 
-ş Simplified hyper-text. Minimal required for documentation. (from my point
+~ş~ Simplified hyper-text. Minimal required for documentation. (from my point
 of view, modern hypertext became looks like a HQ-magazine with live banners,
 but not looks like a document)
-ş Smart search for .HLP-file.
-ş Possibility attach .HLP to your .EXE. Sort of "self-described EXE".
+~ş~ Smart search for .HLP-file.
+~ş~ Possibility attach .HLP to your .EXE. Sort of "self-described EXE".
 User can lost .HLP, but all required .EXE always live in PATH.
 
-So, this 3 points allow acts as unix-man without additional settings,
+  So, this 3 points allow acts as unix-man without additional settings,
 argeements between software vendors etc. You can configure your system
 in FreeDOS-way, or in a minimalistic old-times way - does not matter.
 
-Another primary feature: possibility select part of help and copy to clipboard.
+  Another primary feature: possibility select part of help and copy to
+Windows Clipboard. DWHELP support long file names (LFN).
 
 ~Where dwhelp search .HLP-files?~
 1. current directory
@@ -177,9 +178,17 @@ Another primary feature: possibility select part of help and copy to clipboard.
 !doc dwhelp_progs_guide
 Programmers guide
 
+  So, i am focused on simplicity - dwhelp (IMHO) could not be used to handle
+RBIL (by Ralf Brown) - help-file is limited to 65500 articles and each article
+must be less 64kb length. (but i am not try!) Also i am not use modern
+compression: lightweight-compressor (like lz4, snappy etc) purpose near
+50% compression, but make huge complexity of reader-software. So, i am use
+just RLE-compression. I am does not see reasons use file-"encryption" like NG.
+Good news: i hope, you can easy implement own reader.
 
-  At first: each structure ~MUST BE~ word-aligned (16-bit). Article lines
-is not aligned - just aligned full article.
+  Ok, lets start investigate help-file format. At first: each structure
+~MUST BE~ word-aligned (16-bit). Article lines is not aligned - just aligned
+full article.
 
   HLP file format:
 
@@ -207,7 +216,7 @@ is not aligned - just aligned full article.
 ³ size    ³ DWORD ³ File size (including this 4 bytes)         ³
 ÀÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
 
-  ~Article content format~. Set of records, repeated ~lines~ times.
+  ~Article content format~. Set of records, repeated ~lines~-times.
 
 Simple text
 ÚÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
@@ -227,7 +236,7 @@ Link
 ³ ???? ³ str content (visible text for link) ³
 ÀÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
 
-Each string is compressed with RLE encoding.
+Each string content is compressed with RLE-encoding.
 
 !link dwh_rle_unpack RLE decompression for strings
 
@@ -272,12 +281,14 @@ Example: !link copyright_notice My copyright text
 
 1. You can use ~---~ (minus, 3 times) as markup for horizontal line.
 
-2. "Wave-form minus" (i can't show it due to lack of escape sequence -
-ASCII 0x7E or 126 in decimal). This wave-minus mark highlighted text begin
-and end.
+2. "Tilde" or "Wave-form minus" (i can't show it due to lack of escape
+sequence - ASCII 0x7E or 126 in decimal). This wave-minus mark highlighted
+text begin and end.
 
    All others - you can format your text as a plain document, including
 ASCII art.
+
+   Recomendation: use 79 (or less) columns.
 
 ---
 
@@ -384,8 +395,16 @@ How to build DWHELP
 
   Requirements:
 
-1. Need .TPU from libsystem2 (https://github.com/DosWorld/libsystem2)
-2. Small Make https://github.com/DosWorld/smallmake
+1. Turbo Pascal 7.0 (tpc.exe) in %PATH%
+
+2. Need .TPU from libsystem2 (https://github.com/DosWorld/libsystem2)
+Path to this compiled TPU should be listed into tpc.cfg like:
+
+             /UE:\DEV\TPU;
+
+3. Small Make (https://github.com/DosWorld/smallmake)
+
+4. UPX executable compressor for DOS (https://upx.github.io)
 
   Just type `make`.
 

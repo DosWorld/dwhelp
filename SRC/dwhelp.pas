@@ -23,12 +23,13 @@ SOFTWARE. }
 {$I+}
 PROGRAM DWHELP;
 
-USES SYSTEM2, STR, DWHVIEW, DWHUTIL;
+USES SYSTEM2, STR, DWHVIEW, DWHUTIL, kminput;
 
 VAR     id    : WORD;
         pc    : INTEGER;
         ctx   : TDWH_VIEW_CTX;
         fname : STRING;
+        err   : INTEGER;
 BEGIN
         pc := ParamCount;
         IF (pc <> 1) AND (pc <> 2) THEN BEGIN
@@ -42,6 +43,8 @@ BEGIN
         fname := ParamStr(1);
         IF dwh_lookup(fname) THEN BEGIN
                 DWHVIEW.Init(ctx, id, fname);
-                Halt(dwh_view(ctx));
-        END ELSE Halt(1);
+                err := dwh_view(ctx);
+        END ELSE err := 1;
+        mouse_hide;
+        Halt(err);
 END.
